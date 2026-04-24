@@ -99,9 +99,18 @@
     background: var(--bg); color: var(--text);
     font-size: 15px; line-height: 1.5;
     max-width: 480px; margin: 0 auto;
-    min-height: 100vh; position: relative;
-    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+    min-height: 100vh;
+    min-height: 100dvh; /* mobile-safe: accounts for Safari's dynamic toolbar */
+    position: relative;
+    padding-bottom: calc(200px + env(safe-area-inset-bottom));
     transition: background 0.2s, color 0.2s;
+  }
+  /* Extra bottom padding when viewed in mobile browser (not PWA standalone),
+     so content clears Safari's bottom toolbar as well as our bottom-nav. */
+  @media not all and (display-mode: standalone) {
+    @media (max-width: 480px) {
+      body { padding-bottom: calc(240px + env(safe-area-inset-bottom)); }
+    }
   }
 
   header {
@@ -174,13 +183,19 @@
   .empty-state { text-align: center; padding: 32px 16px; color: var(--text-faint); font-size: 13px; }
 
   .fab {
-    position: fixed; bottom: calc(96px + env(safe-area-inset-bottom)); right: 20px;
-    width: 56px; height: 56px; border-radius: 50%;
+    position: fixed; bottom: calc(90px + env(safe-area-inset-bottom)); right: 16px;
+    width: 52px; height: 52px; border-radius: 50%;
     background: var(--primary); color: var(--on-primary); border: none;
-    font-size: 28px; font-weight: 300;
+    font-size: 26px; font-weight: 300;
     box-shadow: var(--shadow-lg);
     cursor: pointer; z-index: 20;
     display: flex; align-items: center; justify-content: center;
+  }
+  /* In browser mode, lift the FAB higher so Safari's toolbar doesn't cover it */
+  @media not all and (display-mode: standalone) {
+    @media (max-width: 480px) {
+      .fab { bottom: calc(170px + env(safe-area-inset-bottom)); }
+    }
   }
   @media (min-width: 481px) { .fab { right: calc(50% - 240px + 20px); } }
   .fab:active { transform: scale(0.95); }
