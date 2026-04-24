@@ -114,19 +114,50 @@
   header h1 { font-size: 17px; font-weight: 600; color: var(--text-strong); }
   header .sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-  /* Bottom-nav height reference: ~65px + home-indicator.
-     Add extra spacer inside each view so content always clears the fixed tab bar,
-     and in Safari browser mode also clears Safari's bottom toolbar. */
+  /* Bottom-nav height reference: ~65px + home-indicator. */
   .view {
     display: none;
     padding: 16px 16px calc(140px + env(safe-area-inset-bottom));
   }
   .view.active { display: block; }
-  /* When viewed in mobile browser (not PWA), add more space for Safari toolbar */
   @media not all and (display-mode: standalone) {
     @media (max-width: 480px) {
       .view { padding-bottom: calc(240px + env(safe-area-inset-bottom)); }
     }
+  }
+
+  /* iOS-style tab transitions: gentle slide + fade with spring easing.
+     Uses a custom cubic-bezier close to iOS UIKit's default. */
+  @keyframes viewInRight {
+    from { opacity: 0; transform: translate3d(24px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes viewInLeft {
+    from { opacity: 0; transform: translate3d(-24px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .view.active.from-right {
+    animation: viewInRight 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  .view.active.from-left {
+    animation: viewInLeft 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  /* Subtle tab-button press animation */
+  .nav-btn { transition: transform 0.12s ease, color 0.15s ease; }
+  .nav-btn:active { transform: scale(0.92); }
+  .nav-btn.active .icon {
+    animation: navPop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes navPop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  /* Respect user accessibility preference */
+  @media (prefers-reduced-motion: reduce) {
+    .view.active.from-right,
+    .view.active.from-left,
+    .nav-btn.active .icon { animation: none !important; }
   }
 
   .card {
@@ -912,10 +943,22 @@ let calSelectedDate = null;
 // ============================================================
 // View switch
 // ============================================================
+const TAB_ORDER = ['today', 'review', 'calendar', 'analysis', 'settings'];
 function switchView(name) {
+  if (name === currentView) return;
+  const fromIdx = TAB_ORDER.indexOf(currentView);
+  const toIdx = TAB_ORDER.indexOf(name);
+  const direction = toIdx > fromIdx ? 'right' : 'left';
+
   currentView = name;
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.remove('active', 'from-right', 'from-left');
+  });
+  const next = document.getElementById('view-' + name);
+  // Add direction class first so the animation starts from the off-screen state,
+  // then add .active which triggers display:block and kicks off the keyframes.
+  next.classList.add('from-' + direction, 'active');
+
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.nav-btn[data-view="${name}"]`).classList.add('active');
   const titles = {
