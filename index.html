@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#F7F6F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17171C" media="(prefers-color-scheme: dark)">
+<title>LifeLog — 時間の振り返り</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="LifeLog">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  /* ============================================================
+     THEME TOKENS
+     ============================================================ */
+  :root {
+    --bg: #F7F6F2;
+    --card: #FFFFFF;
+    --text: #2B2B33;
+    --text-strong: #3E3E4A;
+    --text-secondary: #555;
+    --text-muted: #888;
+    --text-faint: #AAA;
+    --border: #EDEBE3;
+    --border-strong: #E5E3D9;
+    --divider: #F2F0E8;
+    --surface-2: #FAFAF5;
+    --surface-3: #F0EEE6;
+    --input-bg: #FFFFFF;
+    --diary-bg: #FCFBF7;
+    --primary: #4A7C7E;
+    --primary-strong: #3E6A6C;
+    --on-primary: #FFFFFF;
+    --primary-bg: #E8F2F1;
+    --danger: #D98A8A;
+    --danger-text: #A65A5A;
+    --danger-bg: #F5E5E5;
+    --warning-bg: #FFF9E6;
+    --warning-text: #8A6D1B;
+    --warning-btn: #E8C76A;
+    --ring-bg: #EDEBE3;
+    --score-bad: #D98A8A;
+    --score-mid: #E29C52;
+    --score-good: #4A7C7E;
+    --sun-color: #C77070;
+    --sat-color: #7A9CB0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 12px rgba(74,124,126,0.4);
+    --shadow-block: 0 1px 2px rgba(0,0,0,0.1);
+  }
+  [data-theme="dark"] {
+    --bg: #17171C;
+    --card: #23232A;
+    --text: #E8E8EC;
+    --text-strong: #F5F5F9;
+    --text-secondary: #B5B5BE;
+    --text-muted: #8E8E96;
+    --text-faint: #5E5E68;
+    --border: #33333B;
+    --border-strong: #45454D;
+    --divider: #2A2A31;
+    --surface-2: #2A2A31;
+    --surface-3: #2E2E36;
+    --input-bg: #1E1E25;
+    --diary-bg: #1B1B22;
+    --primary: #6FB5B8;
+    --primary-strong: #83C6C9;
+    --on-primary: #0F2021;
+    --primary-bg: #1F3739;
+    --danger: #E89A9A;
+    --danger-text: #F5B5B5;
+    --danger-bg: #3D2525;
+    --warning-bg: #3A2F10;
+    --warning-text: #F0D089;
+    --warning-btn: #B09040;
+    --ring-bg: #33333B;
+    --score-bad: #E89999;
+    --score-mid: #E8B873;
+    --score-good: #6FB5B8;
+    --sun-color: #E89A9A;
+    --sat-color: #9CBED3;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.25);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.5);
+    --shadow-block: 0 1px 2px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 15px; line-height: 1.5;
+    max-width: 480px; margin: 0 auto;
+    min-height: 100vh; position: relative;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+    transition: background 0.2s, color 0.2s;
+  }
+
+  header {
+    padding: 18px 20px 12px;
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 17px; font-weight: 600; color: var(--text-strong); }
+  header .sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .view { display: none; padding: 16px; }
+  .view.active { display: block; }
+
+  .card {
+    background: var(--card); border-radius: 14px; padding: 16px;
+    margin-bottom: 12px; box-shadow: var(--shadow-sm);
+  }
+  .card h2 {
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    margin-bottom: 12px; letter-spacing: 0.05em;
+  }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .hint { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+
+  svg.icon {
+    fill: none; stroke: currentColor;
+    stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .stats-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .stat-card {
+    flex: 1; background: var(--card); border-radius: 14px;
+    padding: 14px; box-shadow: var(--shadow-sm);
+  }
+  .stat-card .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .stat-card .value { font-size: 22px; font-weight: 700; color: var(--text-strong); }
+  .stat-card .unit { font-size: 12px; color: var(--text-muted); margin-left: 2px; font-weight: 400; }
+
+  /* Timeline */
+  .timeline { position: relative; padding: 8px 0 8px 40px; }
+  .timeline-hours { position: absolute; left: 0; top: 8px; width: 32px; }
+  .timeline-hour { height: 40px; font-size: 10px; color: var(--text-faint); text-align: right; padding-right: 6px; border-top: 1px dashed var(--border); }
+  .timeline-track { position: relative; height: 960px; border-left: 1px solid var(--border-strong); touch-action: pan-y; }
+  .timeline-track.dragging { touch-action: none; background: rgba(74,124,126,0.04); }
+  .timeline-block {
+    position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px;
+    font-size: 11px; color: white; overflow: hidden;
+    box-shadow: var(--shadow-block); cursor: pointer; transition: transform 0.1s;
+  }
+  .timeline-block:active { transform: scale(0.98); }
+  .timeline-block .t-title { font-weight: 600; font-size: 12px; }
+  .timeline-block .t-time { font-size: 10px; opacity: 0.85; }
+  .timeline-ghost {
+    position: absolute; left: 4px; right: 4px;
+    background: repeating-linear-gradient(45deg, rgba(74,124,126,0.25), rgba(74,124,126,0.25) 6px, rgba(74,124,126,0.12) 6px, rgba(74,124,126,0.12) 12px);
+    border: 2px dashed var(--primary); border-radius: 6px; pointer-events: none; z-index: 5;
+    display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 11px; font-weight: 600;
+  }
+
+  .entry-list { list-style: none; }
+  .entry-item { display: flex; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--divider); gap: 10px; cursor: pointer; }
+  .entry-item:last-child { border-bottom: none; }
+  .entry-color { width: 10px; height: 40px; border-radius: 3px; flex-shrink: 0; }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-title { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-cat-tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; color: white; margin-right: 4px; vertical-align: middle; }
+  .entry-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .entry-duration { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+  .empty-state { text-align: center; padding: 32px 16px; color: var(--text-faint); font-size: 13px; }
+
+  .fab {
+    position: fixed; bottom: calc(96px + env(safe-area-inset-bottom)); right: 20px;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--primary); color: var(--on-primary); border: none;
+    font-size: 28px; font-weight: 300;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+  }
+  @media (min-width: 481px) { .fab { right: calc(50% - 240px + 20px); } }
+  .fab:active { transform: scale(0.95); }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px; background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex; padding: 8px 0 calc(22px + env(safe-area-inset-bottom)); z-index: 15;
+  }
+  .nav-btn {
+    flex: 1; border: none; background: transparent;
+    padding: 4px 2px;
+    font-size: 9.5px; color: var(--text-faint); cursor: pointer; font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: color 0.15s;
+  }
+  .nav-btn .icon { width: 22px; height: 22px; }
+  .nav-btn.active { color: var(--primary); }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal {
+    background: var(--bg); width: 100%; max-width: 480px;
+    border-radius: 20px 20px 0 0; padding: 20px;
+    max-height: 92vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--text-strong); margin-bottom: 16px; text-align: center; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .form-input, .form-textarea {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border-strong);
+    border-radius: 10px; font-size: 15px; font-family: inherit;
+    background: var(--input-bg); color: var(--text);
+    color-scheme: light dark;
+  }
+  .form-input:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+  .form-textarea { resize: none; min-height: 60px; }
+  .time-row { display: flex; gap: 10px; }
+  .time-row > div { flex: 1; }
+  .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+  .btn {
+    flex: 1; padding: 14px; border-radius: 12px; border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-primary { background: var(--primary); color: var(--on-primary); }
+  .btn-secondary { background: var(--surface-3); color: var(--text-secondary); }
+  .btn-danger { background: var(--danger); color: white; }
+
+  .category-chips { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 8px; scrollbar-width: none; }
+  .category-chips::-webkit-scrollbar { display: none; }
+  .cat-chip {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 20px; border: 2px solid transparent;
+    background: var(--card); font-size: 13px; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; color: var(--text-secondary); transition: all 0.1s;
+  }
+  .cat-chip .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .cat-chip.selected { border-color: currentColor; font-weight: 600; }
+  .cat-chip.new-chip { border-style: dashed; border-color: var(--border-strong); color: var(--text-muted); }
+
+  .ai-suggestion {
+    display: none; align-items: center; gap: 8px;
+    padding: 10px 12px; background: var(--warning-bg); border-radius: 10px;
+    font-size: 12px; color: var(--warning-text); margin-top: 6px;
+  }
+  .ai-suggestion.active { display: flex; }
+  .ai-suggestion .sug-apply {
+    margin-left: auto; background: var(--warning-btn); color: white; border: none;
+    padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+
+  .cat-manage-item { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--divider); }
+  .cat-manage-item:last-child { border-bottom: none; }
+  .cat-manage-color {
+    width: 28px; height: 28px; border-radius: 8px;
+    border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--border-strong);
+    cursor: pointer; flex-shrink: 0; position: relative; overflow: hidden;
+  }
+  .cat-manage-color input[type="color"] {
+    position: absolute; inset: -4px; border: none; padding: 0; cursor: pointer; opacity: 0;
+  }
+  .cat-manage-name { flex: 1; border: none; background: transparent; font-size: 14px; font-family: inherit; padding: 6px 4px; color: var(--text-strong); }
+  .cat-manage-name:focus { outline: none; background: var(--surface-2); border-radius: 6px; }
+  .cat-manage-del { background: none; border: none; color: var(--danger-text); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+  .cat-keywords { font-size: 11px; color: var(--text-faint); padding: 0 6px 8px 44px; }
+
+  .date-selector { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .date-nav {
+    background: var(--card); border: none; width: 36px; height: 36px;
+    border-radius: 50%; font-size: 16px; color: var(--text-secondary); cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+  .date-label {
+    font-size: 15px; font-weight: 600; flex: 1; text-align: center;
+    padding: 10px 12px; background: var(--card); border-radius: 10px;
+    box-shadow: var(--shadow-sm); cursor: pointer; color: var(--text-strong);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .date-label:active { background: var(--surface-2); }
+  .date-label .weekday { font-size: 12px; color: var(--text-muted); font-weight: 400; margin-left: 4px; }
+  .date-label .caret { width: 14px; height: 14px; color: var(--text-faint); }
+
+  /* Score */
+  .score-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .score-header h2 { margin: 0; }
+  .score-value { font-size: 16px; font-weight: 700; color: var(--text-faint); }
+  .score-value.set { color: var(--text-strong); }
+  .score-dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-bottom: 6px; }
+  .score-dot {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--surface-3);
+    border: none; cursor: pointer;
+    transition: transform 0.1s, background 0.15s;
+  }
+  .score-dot:active { transform: scale(1.25); }
+
+  /* Diary */
+  .diary-textarea {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border-strong);
+    border-radius: 10px; font-size: 14px; line-height: 1.7;
+    font-family: inherit; background: var(--diary-bg); color: var(--text);
+    resize: vertical; min-height: 120px;
+  }
+  .diary-textarea:focus { outline: none; border-color: var(--primary); background: var(--input-bg); }
+  .diary-status { font-size: 11px; color: var(--text-faint); text-align: right; margin-top: 4px; }
+
+  /* Analysis */
+  .tab-row { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tab-btn {
+    flex: 1; padding: 8px; border: 1px solid var(--border-strong);
+    background: var(--card); border-radius: 10px;
+    font-size: 13px; color: var(--text-secondary); cursor: pointer; font-family: inherit;
+  }
+  .tab-btn.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .chart-container { position: relative; height: 240px; margin-bottom: 8px; }
+  .ranking-item { display: flex; align-items: center; padding: 10px 4px; gap: 10px; border-bottom: 1px solid var(--divider); }
+  .ranking-item:last-child { border-bottom: none; }
+  .ranking-rank { font-size: 12px; color: var(--text-faint); width: 20px; font-weight: 600; }
+  .ranking-color { width: 10px; height: 24px; border-radius: 3px; }
+  .ranking-title { flex: 1; font-size: 13px; color: var(--text); }
+  .ranking-value { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+  .ranking-delta { font-size: 11px; margin-left: 6px; padding: 2px 6px; border-radius: 4px; }
+  .delta-up { color: var(--primary-strong); background: var(--primary-bg); }
+  .delta-down { color: var(--danger-text); background: var(--danger-bg); }
+  .delta-same { color: var(--text-muted); background: var(--divider); }
+
+  /* Settings */
+  .settings-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .link-btn {
+    font-size: 12px; color: var(--primary); background: none; border: none;
+    padding: 6px 10px; cursor: pointer; font-family: inherit; text-decoration: underline;
+  }
+  .add-cat-btn {
+    width: 100%; padding: 10px;
+    border: 1px dashed var(--border-strong); border-radius: 10px;
+    background: transparent; color: var(--text-muted); font-size: 13px;
+    font-family: inherit; cursor: pointer; margin-top: 10px;
+  }
+
+  .theme-buttons { display: flex; gap: 6px; margin-top: 4px; }
+  .theme-btn {
+    flex: 1; padding: 10px; border: 1px solid var(--border-strong);
+    background: var(--card); color: var(--text-secondary);
+    border-radius: 10px; font-size: 13px; cursor: pointer;
+    font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .theme-btn.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .theme-btn .icon { width: 16px; height: 16px; }
+
+  /* Calendar */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 10px; }
+  .cal-nav-btn {
+    background: transparent; border: none; width: 32px; height: 32px;
+    border-radius: 50%; color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cal-nav-btn:active { background: var(--surface-3); }
+  .cal-month-label { font-size: 15px; font-weight: 600; color: var(--text-strong); }
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    font-size: 11px; color: var(--text-muted); text-align: center; padding: 4px 0;
+  }
+  .cal-weekdays .wd-sun { color: var(--sun-color); }
+  .cal-weekdays .wd-sat { color: var(--sat-color); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-day-cell {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; transition: transform 0.1s;
+  }
+  .cal-day-cell:active { transform: scale(0.93); }
+  .cal-day-cell.outside { opacity: 0.35; }
+  .cal-day-cell.today .cal-day-num { color: var(--primary); font-weight: 700; }
+  .cal-day-cell.selected::after {
+    content: ''; position: absolute; inset: -2px;
+    border-radius: 50%; border: 2px solid var(--primary); pointer-events: none;
+  }
+  .cal-day-svg { width: 100%; height: 100%; }
+  .cal-day-num {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px; color: var(--text-strong); font-weight: 500;
+    pointer-events: none;
+  }
+  .cal-day-score-dot {
+    position: absolute; right: 10%; top: 10%;
+    width: 6px; height: 6px; border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .cal-legend { display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 2px; }
+  .cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
+  .cal-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .cal-day-info { margin-top: 12px; padding: 12px; background: var(--surface-2); border-radius: 10px; font-size: 12px; }
+  .cal-day-info-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-strong); }
+  .cal-day-info-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; gap: 8px; }
+  .cal-day-info-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+  .cal-day-info-label .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cal-day-info-value { color: var(--text-muted); }
+
+  /* Streak stat */
+  .stat-card.streak .value { color: #E77C3C; }
+  [data-theme="dark"] .stat-card.streak .value { color: #F39A5E; }
+
+  /* Quick templates */
+  .templates-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .template-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 10px; border-radius: 14px; border: 1px solid var(--divider);
+    background: var(--surface-2); font-size: 12px; color: var(--text-secondary);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .template-chip:hover, .template-chip:active { background: var(--surface-3); border-color: var(--accent); color: var(--text-strong); }
+  .template-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .templates-label { font-size: 11px; color: var(--text-faint); margin-bottom: 6px; }
+
+  /* Correlation insights */
+  .insight-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px; background: var(--surface-2); border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .insight-icon { font-size: 18px; flex-shrink: 0; line-height: 1.2; }
+  .insight-text { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
+  .insight-text strong { color: var(--text-strong); font-weight: 600; }
+  .insight-empty { font-size: 12px; color: var(--text-faint); text-align: center; padding: 20px 10px; line-height: 1.6; }
+
+  /* Year heatmap */
+  .heatmap-wrapper { overflow-x: auto; padding: 6px 2px 10px; -webkit-overflow-scrolling: touch; }
+  .heatmap-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 2px; width: max-content; }
+  .heatmap-cell { width: 11px; height: 11px; border-radius: 2px; background: var(--surface-3); }
+  .heatmap-cell.has-score { cursor: pointer; }
+  .heatmap-months { display: grid; grid-auto-flow: column; gap: 2px; font-size: 9px; color: var(--text-faint); margin-bottom: 4px; padding-left: 2px; width: max-content; }
+  .heatmap-legend { display: flex; align-items: center; gap: 6px; justify-content: flex-end; font-size: 10px; color: var(--text-faint); margin-top: 8px; }
+  .heatmap-legend .cells { display: flex; gap: 2px; }
+  .heatmap-legend .heatmap-cell { cursor: default; }
+
+  /* Weekly review banner */
+  .weekly-banner {
+    background: linear-gradient(135deg, var(--accent) 0%, #6FA4A6 100%);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
+    color: #fff; box-shadow: var(--shadow-sm); position: relative;
+  }
+  [data-theme="dark"] .weekly-banner { background: linear-gradient(135deg, #4A7C7E 0%, #3A6466 100%); }
+  .weekly-banner .wb-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .weekly-banner .wb-body { font-size: 12px; line-height: 1.7; opacity: 0.95; }
+  .weekly-banner .wb-close {
+    position: absolute; top: 8px; right: 8px; background: transparent; border: none;
+    color: rgba(255,255,255,0.8); width: 24px; height: 24px; border-radius: 50%;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .weekly-banner .wb-close:hover { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="headerTitle">記録</h1>
+  <div class="sub" id="headerSub"></div>
+</header>
+
+<!-- 記録 -->
+<section id="view-today" class="view active">
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="label">記録した時間</div>
+      <div class="value"><span id="todayTotal">0</span><span class="unit">h</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">件数</div>
+      <div class="value"><span id="todayCount">0</span><span class="unit">件</span></div>
+    </div>
+    <div class="stat-card streak">
+      <div class="label">🔥 連続記録</div>
+      <div class="value"><span id="todayStreak">0</span><span class="unit">日</span></div>
+    </div>
+  </div>
+  <div id="weeklyReviewBanner"></div>
+  <div class="card">
+    <h2>タイムライン</h2>
+    <div class="timeline">
+      <div class="timeline-hours" id="timelineHours"></div>
+      <div class="timeline-track" id="timelineTrack"></div>
+    </div>
+    <div class="hint">💡 空いてる時間をドラッグ（スマホは長押し→ドラッグ）で、その時間帯の記録を追加できるよ</div>
+  </div>
+  <div class="card">
+    <h2>記録一覧</h2>
+    <ul class="entry-list" id="todayEntryList"></ul>
+  </div>
+</section>
+
+<!-- 今日の振り返り -->
+<section id="view-review" class="view">
+  <div class="date-selector">
+    <button class="date-nav" onclick="shiftReviewDate(-1)">‹</button>
+    <div class="date-label" id="reviewDateLabel" onclick="openMiniCalendar()"></div>
+    <button class="date-nav" onclick="shiftReviewDate(1)">›</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="label">記録時間</div>
+      <div class="value"><span id="reviewTotal">0</span><span class="unit">h</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">件数</div>
+      <div class="value"><span id="reviewCount">0</span><span class="unit">件</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="score-header">
+      <h2>今日のスコア</h2>
+      <div class="score-value" id="scoreValue">未設定</div>
+    </div>
+    <div class="score-dots" id="scoreSelector"></div>
+    <div class="hint">タップしてスコアを設定、もう一度タップで解除</div>
+  </div>
+
+  <div class="card">
+    <h2>カテゴリー別の時間</h2>
+    <div class="chart-container"><canvas id="reviewPieChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>ランキング</h2>
+    <div id="reviewRanking"></div>
+  </div>
+
+  <div class="card">
+    <h2>日記</h2>
+    <textarea class="diary-textarea" id="diaryTextarea" placeholder="今日はどんな一日だった？..."></textarea>
+    <div class="diary-status" id="diaryStatus"></div>
+  </div>
+</section>
+
+<!-- カレンダー -->
+<section id="view-calendar" class="view">
+  <div class="card">
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="shiftCalendarMonth(-1)">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="cal-month-label" id="calMonthLabel"></div>
+      <button class="cal-nav-btn" onclick="shiftCalendarMonth(1)">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="cal-weekdays">
+      <div class="wd-sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="wd-sat">土</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <div class="card" id="calDayInfoCard" style="display:none;">
+    <div class="cal-day-info-title" id="calDayInfoTitle"></div>
+    <div id="calDayInfoBody"></div>
+    <button class="btn btn-primary" style="margin-top:12px;" onclick="goToReviewFromCalendar()">この日を振り返る</button>
+  </div>
+
+  <div class="card">
+    <h2>カテゴリー</h2>
+    <div class="cal-legend" id="calLegend"></div>
+  </div>
+</section>
+
+<!-- 分析 -->
+<section id="view-analysis" class="view">
+  <div class="tab-row">
+    <button class="tab-btn active" data-period="week" onclick="setAnalysisPeriod('week')">今週</button>
+    <button class="tab-btn" data-period="month" onclick="setAnalysisPeriod('month')">今月</button>
+    <button class="tab-btn" data-period="weekday" onclick="setAnalysisPeriod('weekday')">曜日別</button>
+    <button class="tab-btn" data-period="year" onclick="setAnalysisPeriod('year')">年</button>
+  </div>
+  <div id="analysisPeriodInfo" class="card" style="padding: 10px 16px;">
+    <div style="font-size: 12px; color: var(--text-muted);" id="analysisPeriodLabel"></div>
+  </div>
+  <div class="card" id="analysisChartCard">
+    <h2 id="analysisChartTitle">時間配分</h2>
+    <div class="chart-container"><canvas id="analysisChart"></canvas></div>
+  </div>
+  <div class="card" id="analysisRankingCard">
+    <h2>ランキング <span style="font-size:11px; color:var(--text-faint); font-weight:400;">（先週比）</span></h2>
+    <div id="analysisRanking"></div>
+  </div>
+  <div class="card" id="analysisInsightsCard">
+    <h2>インサイト <span style="font-size:11px; color:var(--text-faint); font-weight:400;">（スコアと活動の傾向）</span></h2>
+    <div id="analysisInsights"></div>
+  </div>
+  <div class="card" id="analysisHeatmapCard" style="display:none;">
+    <h2>年間ヒートマップ <span style="font-size:11px; color:var(--text-faint); font-weight:400;">（スコア）</span></h2>
+    <div class="heatmap-wrapper">
+      <div class="heatmap-months" id="heatmapMonths"></div>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+    </div>
+    <div class="heatmap-legend">
+      <span>低</span>
+      <div class="cells">
+        <div class="heatmap-cell" style="background:#E8DACC;"></div>
+        <div class="heatmap-cell" style="background:#E29C52;"></div>
+        <div class="heatmap-cell" style="background:#C17B5B;"></div>
+        <div class="heatmap-cell" style="background:#6B8E4E;"></div>
+        <div class="heatmap-cell" style="background:#4A7C7E;"></div>
+      </div>
+      <span>高</span>
+    </div>
+  </div>
+</section>
+
+<!-- 設定 -->
+<section id="view-settings" class="view">
+  <div class="card">
+    <h2>表示</h2>
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">テーマ</div>
+    <div class="theme-buttons" id="themeButtons">
+      <button class="theme-btn" data-theme="auto" onclick="setThemePref('auto')">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/></svg>
+        自動
+      </button>
+      <button class="theme-btn" data-theme="light" onclick="setThemePref('light')">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        ライト
+      </button>
+      <button class="theme-btn" data-theme="dark" onclick="setThemePref('dark')">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        ダーク
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>カテゴリー</h2>
+    <div id="categoryManageList"></div>
+    <button class="add-cat-btn" onclick="addCategory()">+ カテゴリーを追加</button>
+  </div>
+
+  <div class="card">
+    <h2>データ</h2>
+    <div class="settings-row">
+      <button class="link-btn" onclick="loadSampleData()">サンプルデータを入れる</button>
+      <button class="link-btn" onclick="exportData()">エクスポート（JSON）</button>
+      <button class="link-btn" onclick="importData()">インポート</button>
+      <button class="link-btn" style="color:var(--danger-text);" onclick="clearAllData()">全データを削除</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>このアプリについて</h2>
+    <div style="font-size:13px; color:var(--text-secondary); line-height:1.7;">
+      一日の時間の使い方を振り返る、シンプルな記録アプリのプロトタイプです。<br><br>
+      データはこの端末のブラウザに保存されます（localStorage）。<br>
+      バックアップは「エクスポート」からどうぞ。
+    </div>
+  </div>
+  <input type="file" id="importFile" accept=".json" style="display:none;">
+</section>
+
+<button class="fab" onclick="openAddModal()">+</button>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-view="today" onclick="switchView('today')">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+    <span>記録</span>
+  </button>
+  <button class="nav-btn" data-view="review" onclick="switchView('review')">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    <span>今日の振り返り</span>
+  </button>
+  <button class="nav-btn" data-view="calendar" onclick="switchView('calendar')">
+    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>カレンダー</span>
+  </button>
+  <button class="nav-btn" data-view="analysis" onclick="switchView('analysis')">
+    <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
+    <span>分析</span>
+  </button>
+  <button class="nav-btn" data-view="settings" onclick="switchView('settings')">
+    <svg class="icon" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    <span>設定</span>
+  </button>
+</nav>
+
+<!-- Entry modal -->
+<div class="modal-backdrop" id="entryModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">記録を追加</div>
+    <div class="form-group" id="templatesGroup">
+      <div class="templates-label">⚡ よく使うテンプレート</div>
+      <div class="templates-row" id="templatesRow"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付</label>
+      <input type="date" class="form-input" id="formDate">
+    </div>
+    <div class="form-group">
+      <div class="time-row">
+        <div>
+          <label class="form-label">開始</label>
+          <input type="time" class="form-input" id="formStart">
+        </div>
+        <div>
+          <label class="form-label">終了</label>
+          <input type="time" class="form-input" id="formEnd">
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">内容</label>
+      <input type="text" class="form-input" id="formContent" placeholder="例：勉強、仕事、食事、散歩..." autocomplete="off">
+      <div class="ai-suggestion" id="aiSuggestion">
+        <span>💡</span>
+        <span id="aiSuggestionText"></span>
+        <button class="sug-apply" onclick="applySuggestion()">適用</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">カテゴリー</label>
+      <div class="category-chips" id="categoryChips"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ（任意）</label>
+      <textarea class="form-textarea" id="formMemo" placeholder=""></textarea>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-danger" id="deleteBtn" style="display:none;" onclick="deleteEntry()">削除</button>
+      <button class="btn btn-primary" onclick="saveEntry()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mini calendar modal -->
+<div class="modal-backdrop" id="miniCalModal" style="align-items:center;">
+  <div class="modal" style="max-width:380px; border-radius:20px; max-height:80vh;">
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="shiftMiniCalMonth(-1)">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="cal-month-label" id="miniCalMonthLabel"></div>
+      <button class="cal-nav-btn" onclick="shiftMiniCalMonth(1)">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="cal-weekdays">
+      <div class="wd-sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="wd-sat">土</div>
+    </div>
+    <div class="cal-grid" id="miniCalGrid"></div>
+    <div class="modal-buttons" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeMiniCalendar()">閉じる</button>
+      <button class="btn btn-primary" onclick="jumpMiniCalToToday()">今日</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Theme
+// ============================================================
+const THEME_KEY = 'lifelog_theme';
+function getThemePref() { return localStorage.getItem(THEME_KEY) || 'auto'; }
+function setThemePref(pref) {
+  localStorage.setItem(THEME_KEY, pref);
+  applyTheme();
+}
+function applyTheme() {
+  const pref = getThemePref();
+  let resolved = pref;
+  if (pref === 'auto') {
+    resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', resolved);
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === pref));
+  const metaLight = document.querySelector('meta[name="theme-color"][media="(prefers-color-scheme: light)"]');
+  if (metaLight) metaLight.setAttribute('content', resolved === 'dark' ? '#17171C' : '#F7F6F2');
+  if (typeof render === 'function') render(); // rerender charts
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (getThemePref() === 'auto') applyTheme();
+});
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+// ============================================================
+// Data
+// ============================================================
+const STORAGE_KEY = 'lifelog_data_v2';
+const DEFAULT_CATEGORIES = [
+  { id: 'c_sleep',    name: '睡眠',   color: '#7C5E99', keywords: ['睡眠','寝る','昼寝','仮眠','うたた寝','sleep','nap'] },
+  { id: 'c_work',     name: '仕事',   color: '#4A7C7E', keywords: ['仕事','ミーティング','会議','業務','打ち合わせ','作業','work','meeting'] },
+  { id: 'c_study',    name: '勉強',   color: '#5B8EC1', keywords: ['勉強','学習','読書','本','英語','数学','研究','論文','プログラミング','コーディング','開発','study'] },
+  { id: 'c_meal',     name: '食事',   color: '#E29C52', keywords: ['食事','朝食','昼食','夕食','朝ごはん','昼ごはん','夕ごはん','朝飯','昼飯','夕飯','ランチ','ディナー','おやつ','食べる'] },
+  { id: 'c_exercise', name: '運動',   color: '#6B8E4E', keywords: ['運動','ジム','ジョギング','ランニング','散歩','ウォーキング','ヨガ','筋トレ','スポーツ','トレーニング'] },
+  { id: 'c_leisure',  name: '娯楽',   color: '#C17B5B', keywords: ['娯楽','ゲーム','映画','アニメ','音楽','SNS','YouTube','Netflix','漫画','マンガ','遊ぶ','テレビ'] },
+  { id: 'c_chores',   name: '家事',   color: '#B8925A', keywords: ['家事','掃除','洗濯','料理','買い物','炊事'] },
+  { id: 'c_commute',  name: '通勤',   color: '#7A9CB0', keywords: ['通勤','移動','電車','通学','出勤','帰宅'] },
+  { id: 'c_other',    name: 'その他', color: '#A58F4E', keywords: [] }
+];
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (!d.contentMap) d.contentMap = {};
+      if (!d.diaries) d.diaries = {};
+      if (!d.scores) d.scores = {};
+      if (!d.categories || !Array.isArray(d.categories)) d.categories = DEFAULT_CATEGORIES.map(c => ({...c}));
+      return d;
+    }
+  } catch(e) {}
+  let v1 = [];
+  try { v1 = JSON.parse(localStorage.getItem('lifelog_entries_v1') || '[]'); } catch(e) {}
+  return { entries: v1, categories: DEFAULT_CATEGORIES.map(c => ({...c})), contentMap: {}, diaries: {}, scores: {} };
+}
+function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+let state = loadData();
+
+// ============================================================
+// Helpers
+// ============================================================
+function getCategoryById(id) { return state.categories.find(c => c.id === id); }
+function hashColor(text) {
+  if (!text) return '#999';
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  const palette = ['#4A7C7E','#E29C52','#7C5E99','#A65A7A','#6B8E4E','#C17B5B','#5B8EC1','#B8925A','#8E7CC3','#5A9E8A'];
+  return palette[h % palette.length];
+}
+function colorForEntry(e) {
+  if (e.categoryId) { const c = getCategoryById(e.categoryId); if (c) return c.color; }
+  return hashColor(e.content);
+}
+function todayStr() { return fmtDate(new Date()); }
+function fmtDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDateDisplay(s) { const d = new Date(s + 'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; }
+function weekdayStr(s) { const d = new Date(s + 'T00:00:00'); return ['日','月','火','水','木','金','土'][d.getDay()] + '曜日'; }
+function minutesBetween(s, e) {
+  const [sh,sm] = s.split(':').map(Number), [eh,em] = e.split(':').map(Number);
+  let m = (eh*60+em) - (sh*60+sm); if (m < 0) m += 24*60; return m;
+}
+function fmtDuration(m) {
+  const h = Math.floor(m/60), mm = m % 60;
+  if (h === 0) return `${mm}分`;
+  if (mm === 0) return `${h}時間`;
+  return `${h}時間${mm}分`;
+}
+function fmtHours(m) { return (m / 60).toFixed(1); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Score color
+function getScoreColor(score) {
+  if (score <= 3) return cssVar('--score-bad');
+  if (score <= 6) return cssVar('--score-mid');
+  return cssVar('--score-good');
+}
+
+// ============================================================
+// Category suggestion
+// ============================================================
+function suggestCategory(content) {
+  if (!content) return null;
+  const learned = state.contentMap[content.trim()];
+  if (learned && getCategoryById(learned)) return getCategoryById(learned);
+  const lc = content.toLowerCase();
+  for (const cat of state.categories)
+    for (const kw of (cat.keywords || []))
+      if (lc.includes(kw.toLowerCase())) return cat;
+  return null;
+}
+function learnContentCategory(c, id) { if (c && id) state.contentMap[c.trim()] = id; }
+
+// ============================================================
+// State
+// ============================================================
+let currentView = 'today';
+let reviewDate = todayStr();
+let analysisPeriod = 'week';
+let editingId = null;
+let selectedCategoryId = null;
+let reviewChart = null, analysisChart = null;
+let calendarYear = new Date().getFullYear(), calendarMonth = new Date().getMonth();
+let miniCalYear = new Date().getFullYear(), miniCalMonth = new Date().getMonth();
+let calSelectedDate = null;
+
+// ============================================================
+// View switch
+// ============================================================
+function switchView(name) {
+  currentView = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.nav-btn[data-view="${name}"]`).classList.add('active');
+  const titles = {
+    today: ['記録', todayDisplay()],
+    review: ['今日の振り返り', ''],
+    calendar: ['カレンダー', '一覧から選ぶ'],
+    analysis: ['分析', '傾向と比較'],
+    settings: ['設定', '']
+  };
+  document.getElementById('headerTitle').textContent = titles[name][0];
+  document.getElementById('headerSub').textContent = titles[name][1];
+  window.scrollTo(0, 0);
+  render();
+}
+function todayDisplay() {
+  const d = new Date();
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${['日','月','火','水','木','金','土'][d.getDay()]}曜日`;
+}
+
+// ============================================================
+// Entry modal
+// ============================================================
+function openAddModal(prefill) {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '記録を追加';
+  document.getElementById('deleteBtn').style.display = 'none';
+  const now = new Date();
+  document.getElementById('formDate').value = prefill?.date || todayStr();
+  document.getElementById('formStart').value = prefill?.startTime || `${String(now.getHours()).padStart(2,'0')}:00`;
+  document.getElementById('formEnd').value = prefill?.endTime || `${String(now.getHours()).padStart(2,'0')}:30`;
+  document.getElementById('formContent').value = prefill?.content || '';
+  document.getElementById('formMemo').value = prefill?.memo || '';
+  selectedCategoryId = prefill?.categoryId || null;
+  renderCategoryChips();
+  renderTemplates();
+  updateAISuggestion();
+  document.getElementById('entryModal').classList.add('active');
+}
+function openEditModal(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = '記録を編集';
+  document.getElementById('deleteBtn').style.display = 'block';
+  document.getElementById('formDate').value = e.date;
+  document.getElementById('formStart').value = e.startTime;
+  document.getElementById('formEnd').value = e.endTime;
+  document.getElementById('formContent').value = e.content;
+  document.getElementById('formMemo').value = e.memo || '';
+  selectedCategoryId = e.categoryId || null;
+  renderCategoryChips();
+  document.getElementById('templatesGroup').style.display = 'none';
+  updateAISuggestion();
+  document.getElementById('entryModal').classList.add('active');
+}
+function closeModal() { document.getElementById('entryModal').classList.remove('active'); editingId = null; }
+
+function renderCategoryChips() {
+  const el = document.getElementById('categoryChips');
+  el.innerHTML = '';
+  const n = document.createElement('button');
+  n.className = 'cat-chip' + (selectedCategoryId === null ? ' selected' : '');
+  n.style.color = 'var(--text-muted)';
+  n.innerHTML = `<span class="dot" style="background:var(--border-strong);"></span>なし`;
+  n.onclick = () => { selectedCategoryId = null; renderCategoryChips(); };
+  el.appendChild(n);
+  state.categories.forEach(cat => {
+    const chip = document.createElement('button');
+    chip.className = 'cat-chip' + (selectedCategoryId === cat.id ? ' selected' : '');
+    chip.style.color = cat.color;
+    chip.innerHTML = `<span class="dot" style="background:${cat.color};"></span>${escapeHtml(cat.name)}`;
+    chip.onclick = () => { selectedCategoryId = cat.id; renderCategoryChips(); hideAISuggestion(); };
+    el.appendChild(chip);
+  });
+  const nw = document.createElement('button');
+  nw.className = 'cat-chip new-chip';
+  nw.innerHTML = '+ 新規';
+  nw.onclick = () => {
+    const name = prompt('新しいカテゴリー名'); if (!name) return;
+    const cat = { id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,5), name: name.trim(), color: hashColor(name.trim()), keywords: [name.trim()] };
+    state.categories.push(cat); selectedCategoryId = cat.id; persist(); renderCategoryChips();
+  };
+  el.appendChild(nw);
+}
+function updateAISuggestion() {
+  const content = document.getElementById('formContent').value.trim();
+  const el = document.getElementById('aiSuggestion');
+  if (!content || selectedCategoryId) { el.classList.remove('active'); return; }
+  const sug = suggestCategory(content);
+  if (!sug) { el.classList.remove('active'); return; }
+  document.getElementById('aiSuggestionText').innerHTML = `もしかして<b style="color:${sug.color}">${escapeHtml(sug.name)}</b>？`;
+  el.dataset.catId = sug.id;
+  el.classList.add('active');
+}
+function hideAISuggestion() { document.getElementById('aiSuggestion').classList.remove('active'); }
+function applySuggestion() {
+  const id = document.getElementById('aiSuggestion').dataset.catId;
+  if (id) { selectedCategoryId = id; renderCategoryChips(); hideAISuggestion(); }
+}
+document.getElementById('formContent').addEventListener('input', updateAISuggestion);
+
+function saveEntry() {
+  const date = document.getElementById('formDate').value;
+  const startTime = document.getElementById('formStart').value;
+  const endTime = document.getElementById('formEnd').value;
+  const content = document.getElementById('formContent').value.trim();
+  const memo = document.getElementById('formMemo').value.trim();
+  if (!date || !startTime || !endTime || !content) { alert('日付・時刻・内容を入力してね'); return; }
+  let catId = selectedCategoryId;
+  if (!catId) { const sug = suggestCategory(content); if (sug) catId = sug.id; }
+  if (editingId) {
+    const idx = state.entries.findIndex(e => e.id === editingId);
+    if (idx >= 0) state.entries[idx] = { ...state.entries[idx], date, startTime, endTime, content, memo, categoryId: catId };
+  } else {
+    state.entries.push({ id: 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,6), date, startTime, endTime, content, memo, categoryId: catId });
+  }
+  if (catId) learnContentCategory(content, catId);
+  persist(); closeModal(); render();
+}
+function deleteEntry() {
+  if (!editingId) return;
+  if (!confirm('この記録を削除する？')) return;
+  state.entries = state.entries.filter(e => e.id !== editingId);
+  persist(); closeModal(); render();
+}
+
+// ============================================================
+// Today view + drag
+// ============================================================
+function renderToday() {
+  const today = todayStr();
+  const entries = state.entries.filter(e => e.date === today).sort((a,b) => a.startTime.localeCompare(b.startTime));
+  const totalMin = entries.reduce((s,e) => s + minutesBetween(e.startTime, e.endTime), 0);
+  document.getElementById('todayTotal').textContent = fmtHours(totalMin);
+  document.getElementById('todayCount').textContent = entries.length;
+  document.getElementById('todayStreak').textContent = calculateStreak();
+  renderWeeklyReview();
+
+  const hoursEl = document.getElementById('timelineHours');
+  hoursEl.innerHTML = '';
+  for (let h = 0; h < 24; h++) {
+    const div = document.createElement('div');
+    div.className = 'timeline-hour';
+    div.textContent = h % 3 === 0 ? h + ':00' : '';
+    hoursEl.appendChild(div);
+  }
+  const track = document.getElementById('timelineTrack');
+  track.innerHTML = '';
+  entries.forEach(e => {
+    const [sh,sm] = e.startTime.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const durMin = minutesBetween(e.startTime, e.endTime);
+    const top = (startMin / 60) * 40;
+    const height = Math.max(18, (durMin / 60) * 40);
+    const block = document.createElement('div');
+    block.className = 'timeline-block';
+    block.style.top = top + 'px';
+    block.style.height = height + 'px';
+    block.style.background = colorForEntry(e);
+    block.innerHTML = `<div class="t-title">${escapeHtml(e.content)}</div><div class="t-time">${e.startTime}–${e.endTime}</div>`;
+    block.addEventListener('click', (ev) => { ev.stopPropagation(); openEditModal(e.id); });
+    track.appendChild(block);
+  });
+  setupTimelineDrag();
+
+  const list = document.getElementById('todayEntryList');
+  list.innerHTML = '';
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="empty-state">まだ記録がないよ。<br>右下の「+」ボタン、もしくはタイムラインのドラッグで追加できるよ。</div>';
+    return;
+  }
+  entries.forEach(e => {
+    const mins = minutesBetween(e.startTime, e.endTime);
+    const cat = e.categoryId ? getCategoryById(e.categoryId) : null;
+    const li = document.createElement('li');
+    li.className = 'entry-item';
+    li.onclick = () => openEditModal(e.id);
+    li.innerHTML = `
+      <div class="entry-color" style="background:${colorForEntry(e)};"></div>
+      <div class="entry-info">
+        <div class="entry-title">
+          ${cat ? `<span class="entry-cat-tag" style="background:${cat.color};">${escapeHtml(cat.name)}</span>` : ''}
+          ${escapeHtml(e.content)}
+        </div>
+        <div class="entry-meta">${e.startTime} – ${e.endTime}${e.memo ? ' · ' + escapeHtml(e.memo) : ''}</div>
+      </div>
+      <div class="entry-duration">${fmtDuration(mins)}</div>
+    `;
+    list.appendChild(li);
+  });
+}
+
+const SNAP_MIN = 15;
+function pxToMin(px) { const raw = (px / 40) * 60; return Math.max(0, Math.min(24*60, Math.round(raw / SNAP_MIN) * SNAP_MIN)); }
+function minToTime(min) { const h = Math.floor(min/60), m = min % 60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+let timelineDrag = null, longPressTimer = null;
+function setupTimelineDrag() {
+  const track = document.getElementById('timelineTrack');
+  if (track.dataset.dragBound === '1') return;
+  track.dataset.dragBound = '1';
+  track.addEventListener('pointerdown', (e) => {
+    if (e.target !== track) return;
+    const rect = track.getBoundingClientRect();
+    const startY = e.clientY - rect.top;
+    const isTouch = e.pointerType === 'touch';
+    const begin = () => {
+      timelineDrag = { startY, currentY: startY, pointerId: e.pointerId };
+      track.classList.add('dragging');
+      try { track.setPointerCapture(e.pointerId); } catch(err) {}
+      updateGhost();
+    };
+    if (isTouch) {
+      longPressTimer = setTimeout(begin, 300);
+      const cancel = () => { clearTimeout(longPressTimer); longPressTimer = null; };
+      const moveWatch = (ev) => { if (!timelineDrag && Math.abs((ev.clientY - rect.top) - startY) > 10) cancel(); };
+      track.addEventListener('pointermove', moveWatch);
+      track.addEventListener('pointerup', () => { cancel(); track.removeEventListener('pointermove', moveWatch); }, { once: true });
+      track.addEventListener('pointercancel', () => { cancel(); track.removeEventListener('pointermove', moveWatch); }, { once: true });
+    } else {
+      begin();
+    }
+  });
+  track.addEventListener('pointermove', (e) => {
+    if (!timelineDrag) return;
+    const rect = track.getBoundingClientRect();
+    timelineDrag.currentY = e.clientY - rect.top;
+    updateGhost();
+  });
+  const finish = () => {
+    if (!timelineDrag) return;
+    const dY = Math.abs(timelineDrag.currentY - timelineDrag.startY);
+    const startMin = pxToMin(Math.min(timelineDrag.startY, timelineDrag.currentY));
+    let endMin = pxToMin(Math.max(timelineDrag.startY, timelineDrag.currentY));
+    if (endMin <= startMin) endMin = Math.min(24*60, startMin + 30);
+    removeGhost(); track.classList.remove('dragging');
+    const wasDrag = dY > 6;
+    timelineDrag = null;
+    if (wasDrag) openAddModal({ date: todayStr(), startTime: minToTime(startMin), endTime: minToTime(endMin) });
+  };
+  track.addEventListener('pointerup', finish);
+  track.addEventListener('pointercancel', () => {
+    if (timelineDrag) { removeGhost(); track.classList.remove('dragging'); timelineDrag = null; }
+  });
+}
+function updateGhost() {
+  if (!timelineDrag) return;
+  const track = document.getElementById('timelineTrack');
+  let ghost = document.getElementById('timelineGhost');
+  if (!ghost) {
+    ghost = document.createElement('div'); ghost.id = 'timelineGhost'; ghost.className = 'timeline-ghost';
+    track.appendChild(ghost);
+  }
+  const top = Math.min(timelineDrag.startY, timelineDrag.currentY);
+  const height = Math.max(10, Math.abs(timelineDrag.currentY - timelineDrag.startY));
+  ghost.style.top = top + 'px';
+  ghost.style.height = height + 'px';
+  const sMin = pxToMin(top), eMin = pxToMin(top + height);
+  ghost.textContent = `${minToTime(sMin)} – ${minToTime(eMin)}`;
+}
+function removeGhost() { const g = document.getElementById('timelineGhost'); if (g) g.remove(); }
+
+// ============================================================
+// Review + Score + Diary
+// ============================================================
+function shiftReviewDate(delta) {
+  const d = new Date(reviewDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  reviewDate = fmtDate(d);
+  renderReview();
+}
+function renderReview() {
+  const entries = state.entries.filter(e => e.date === reviewDate);
+  const dateLabel = document.getElementById('reviewDateLabel');
+  const isToday = reviewDate === todayStr();
+  dateLabel.innerHTML = `
+    <span>${isToday ? '今日 · ' : ''}${fmtDateDisplay(reviewDate)}</span>
+    <span class="weekday">${weekdayStr(reviewDate)}</span>
+    <svg class="icon caret" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+  `;
+  const totalMin = entries.reduce((s,e) => s + minutesBetween(e.startTime, e.endTime), 0);
+  document.getElementById('reviewTotal').textContent = fmtHours(totalMin);
+  document.getElementById('reviewCount').textContent = entries.length;
+
+  renderScore();
+
+  const { groups, colors } = groupForChart(entries);
+  const sorted = Object.entries(groups).sort((a,b) => b[1] - a[1]);
+  renderPieChart('reviewPieChart', sorted, colors, 'reviewChart');
+
+  const rankingEl = document.getElementById('reviewRanking');
+  rankingEl.innerHTML = '';
+  if (sorted.length === 0) {
+    rankingEl.innerHTML = '<div class="empty-state">この日はまだ記録がないよ。</div>';
+  } else {
+    sorted.forEach(([label, mins], i) => {
+      const pct = totalMin > 0 ? Math.round(mins / totalMin * 100) : 0;
+      const div = document.createElement('div');
+      div.className = 'ranking-item';
+      div.innerHTML = `
+        <div class="ranking-rank">${i+1}</div>
+        <div class="ranking-color" style="background:${colors[label]};"></div>
+        <div class="ranking-title">${escapeHtml(label)}</div>
+        <div class="ranking-value">${fmtDuration(mins)} <span style="color:var(--text-faint); font-weight:400; font-size:11px;">(${pct}%)</span></div>
+      `;
+      rankingEl.appendChild(div);
+    });
+  }
+
+  document.getElementById('diaryTextarea').value = state.diaries[reviewDate] || '';
+  document.getElementById('diaryStatus').textContent = '';
+}
+
+function renderScore() {
+  const score = state.scores[reviewDate];
+  const container = document.getElementById('scoreSelector');
+  container.innerHTML = '';
+  const color = score ? getScoreColor(score) : null;
+  const emptyColor = cssVar('--surface-3');
+  for (let i = 1; i <= 10; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'score-dot';
+    dot.style.background = (score && i <= score) ? color : emptyColor;
+    dot.onclick = () => setScore(i);
+    container.appendChild(dot);
+  }
+  const label = document.getElementById('scoreValue');
+  if (score) {
+    label.textContent = `${score} / 10`;
+    label.classList.add('set');
+    label.style.color = color;
+  } else {
+    label.textContent = '未設定';
+    label.classList.remove('set');
+    label.style.color = '';
+  }
+}
+function setScore(val) {
+  if (state.scores[reviewDate] === val) delete state.scores[reviewDate];
+  else state.scores[reviewDate] = val;
+  persist();
+  renderScore();
+  if (currentView === 'calendar') renderCalendar();
+}
+
+// Diary auto-save
+let diarySaveTimer = null;
+document.getElementById('diaryTextarea').addEventListener('input', (e) => {
+  clearTimeout(diarySaveTimer);
+  document.getElementById('diaryStatus').textContent = '入力中...';
+  diarySaveTimer = setTimeout(() => {
+    const t = e.target.value;
+    if (t.trim()) state.diaries[reviewDate] = t; else delete state.diaries[reviewDate];
+    persist();
+    document.getElementById('diaryStatus').textContent = '保存しました ✓';
+    setTimeout(() => { document.getElementById('diaryStatus').textContent = ''; }, 1500);
+  }, 500);
+});
+
+function groupForChart(entries) {
+  const groups = {}, colors = {};
+  entries.forEach(e => {
+    const mins = minutesBetween(e.startTime, e.endTime);
+    const cat = e.categoryId ? getCategoryById(e.categoryId) : null;
+    const label = cat ? cat.name : e.content;
+    const color = cat ? cat.color : hashColor(e.content);
+    groups[label] = (groups[label] || 0) + mins;
+    colors[label] = color;
+  });
+  return { groups, colors };
+}
+
+function renderPieChart(canvasId, sorted, colors, chartVar) {
+  const ctx = document.getElementById(canvasId);
+  if (window[chartVar]) { window[chartVar].destroy(); window[chartVar] = null; }
+  if (sorted.length === 0) { ctx.style.display='none'; return; }
+  ctx.style.display = 'block';
+  window[chartVar] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(x => x[0]),
+      datasets: [{ data: sorted.map(x => x[1]), backgroundColor: sorted.map(x => colors[x[0]] || '#999'), borderWidth: 2, borderColor: cssVar('--card') }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: cssVar('--text-secondary') } },
+        tooltip: { callbacks: { label: (c) => `${c.label}: ${fmtDuration(c.parsed)}` } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// Day ring SVG
+// ============================================================
+function dayRingSVG(dateStr, size, strokeWidth) {
+  const entries = state.entries.filter(e => e.date === dateStr);
+  const { groups, colors } = groupForChart(entries);
+  const sorted = Object.entries(groups).sort((a,b) => b[1] - a[1]);
+  const r = (size / 2) - strokeWidth / 2 - 2;
+  const cx = size / 2, cy = size / 2;
+  const circum = 2 * Math.PI * r;
+  const totalDay = 24 * 60;
+  const ringBg = cssVar('--ring-bg');
+  let arcs = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ringBg}" stroke-width="${strokeWidth}"/>`;
+  let offset = 0;
+  sorted.forEach(([label, mins]) => {
+    const frac = Math.min(1, mins / totalDay);
+    const len = frac * circum;
+    if (len < 0.5) return;
+    arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[label] || '#999'}" stroke-width="${strokeWidth}" stroke-dasharray="${len.toFixed(2)} ${(circum-len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" stroke-linecap="butt" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset += len;
+  });
+  return arcs;
+}
+
+// ============================================================
+// Mini calendar
+// ============================================================
+function openMiniCalendar() {
+  const d = new Date(reviewDate + 'T00:00:00');
+  miniCalYear = d.getFullYear(); miniCalMonth = d.getMonth();
+  renderMiniCalendar();
+  document.getElementById('miniCalModal').classList.add('active');
+}
+function closeMiniCalendar() { document.getElementById('miniCalModal').classList.remove('active'); }
+function shiftMiniCalMonth(delta) {
+  const d = new Date(miniCalYear, miniCalMonth + delta, 1);
+  miniCalYear = d.getFullYear(); miniCalMonth = d.getMonth();
+  renderMiniCalendar();
+}
+function jumpMiniCalToToday() { reviewDate = todayStr(); closeMiniCalendar(); renderReview(); }
+function renderMiniCalendar() {
+  document.getElementById('miniCalMonthLabel').textContent = `${miniCalYear}年${miniCalMonth+1}月`;
+  const grid = document.getElementById('miniCalGrid');
+  grid.innerHTML = '';
+  buildCalendarGrid(grid, miniCalYear, miniCalMonth, 36, 3, (dateStr) => {
+    reviewDate = dateStr; closeMiniCalendar(); renderReview();
+  }, reviewDate);
+}
+
+// ============================================================
+// Full calendar
+// ============================================================
+function shiftCalendarMonth(delta) {
+  const d = new Date(calendarYear, calendarMonth + delta, 1);
+  calendarYear = d.getFullYear(); calendarMonth = d.getMonth();
+  renderCalendar();
+}
+function renderCalendar() {
+  document.getElementById('calMonthLabel').textContent = `${calendarYear}年${calendarMonth+1}月`;
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  buildCalendarGrid(grid, calendarYear, calendarMonth, 52, 4, (dateStr) => {
+    calSelectedDate = dateStr;
+    renderCalendar();
+    renderCalDayInfo();
+  }, calSelectedDate);
+  renderCalDayInfo();
+  renderCalLegend();
+}
+function renderCalDayInfo() {
+  const card = document.getElementById('calDayInfoCard');
+  if (!calSelectedDate) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const entries = state.entries.filter(e => e.date === calSelectedDate);
+  const totalMin = entries.reduce((s,e) => s + minutesBetween(e.startTime, e.endTime), 0);
+  const { groups, colors } = groupForChart(entries);
+  const sorted = Object.entries(groups).sort((a,b) => b[1] - a[1]);
+  const score = state.scores[calSelectedDate];
+  let scoreHtml = '';
+  if (score) scoreHtml = ` <span style="color:${getScoreColor(score)}; font-weight:700;">スコア ${score}/10</span>`;
+  document.getElementById('calDayInfoTitle').innerHTML = `${fmtDateDisplay(calSelectedDate)} (${weekdayStr(calSelectedDate)}) — ${fmtHours(totalMin)}h${scoreHtml}`;
+  const body = document.getElementById('calDayInfoBody');
+  if (sorted.length === 0) {
+    body.innerHTML = '<div style="color:var(--text-faint); font-size:12px; padding:8px 0;">記録なし</div>';
+  } else {
+    body.innerHTML = sorted.map(([label, mins]) => `
+      <div class="cal-day-info-row">
+        <div class="cal-day-info-label"><span class="dot" style="background:${colors[label]};"></span>${escapeHtml(label)}</div>
+        <div class="cal-day-info-value">${fmtDuration(mins)}</div>
+      </div>
+    `).join('');
+  }
+}
+function goToReviewFromCalendar() {
+  if (!calSelectedDate) return;
+  reviewDate = calSelectedDate;
+  switchView('review');
+}
+function renderCalLegend() {
+  const el = document.getElementById('calLegend');
+  el.innerHTML = '';
+  state.categories.forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'cal-legend-item';
+    div.innerHTML = `<span class="cal-legend-dot" style="background:${cat.color};"></span>${escapeHtml(cat.name)}`;
+    el.appendChild(div);
+  });
+}
+
+function buildCalendarGrid(container, year, month, cellSize, strokeWidth, onDayClick, highlightDate) {
+  const firstDay = new Date(year, month, 1);
+  const startWd = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevDaysInMonth = new Date(year, month, 0).getDate();
+  const todayS = todayStr();
+  for (let i = 0; i < startWd; i++) {
+    const d = prevDaysInMonth - startWd + i + 1;
+    const dateStr = fmtDate(new Date(year, month - 1, d));
+    container.appendChild(buildDayCell(dateStr, d, cellSize, strokeWidth, true, todayS, highlightDate, onDayClick));
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = fmtDate(new Date(year, month, d));
+    container.appendChild(buildDayCell(dateStr, d, cellSize, strokeWidth, false, todayS, highlightDate, onDayClick));
+  }
+  const totalCells = startWd + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    const dateStr = fmtDate(new Date(year, month + 1, i));
+    container.appendChild(buildDayCell(dateStr, i, cellSize, strokeWidth, true, todayS, highlightDate, onDayClick));
+  }
+}
+function buildDayCell(dateStr, dayNum, cellSize, strokeWidth, outside, todayS, highlightDate, onDayClick) {
+  const cell = document.createElement('div');
+  cell.className = 'cal-day-cell';
+  if (outside) cell.classList.add('outside');
+  if (dateStr === todayS) cell.classList.add('today');
+  if (dateStr === highlightDate) cell.classList.add('selected');
+  const score = state.scores[dateStr];
+  let scoreDot = '';
+  if (score && !outside) {
+    scoreDot = `<span class="cal-day-score-dot" style="background:${getScoreColor(score)};"></span>`;
+  }
+  cell.innerHTML = `
+    <svg class="cal-day-svg" viewBox="0 0 ${cellSize} ${cellSize}">
+      ${dayRingSVG(dateStr, cellSize, strokeWidth)}
+    </svg>
+    <span class="cal-day-num">${dayNum}</span>
+    ${scoreDot}
+  `;
+  cell.addEventListener('click', () => onDayClick(dateStr));
+  return cell;
+}
+
+// ============================================================
+// Analysis
+// ============================================================
+function setAnalysisPeriod(p) {
+  analysisPeriod = p;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+  renderAnalysis();
+}
+function getWeekRange(offset = 0) {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMon = (day === 0 ? -6 : 1 - day);
+  const mon = new Date(now); mon.setDate(now.getDate() + diffToMon + offset*7); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return [fmtDate(mon), fmtDate(sun)];
+}
+function getMonthRange(offset = 0) {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+  return [fmtDate(first), fmtDate(last)];
+}
+function inRange(d, r) { return d >= r[0] && d <= r[1]; }
+function renderAnalysis() {
+  const periodLabel = document.getElementById('analysisPeriodLabel');
+  const chartTitle = document.getElementById('analysisChartTitle');
+  const rankingCard = document.getElementById('analysisRankingCard');
+  const insightsCard = document.getElementById('analysisInsightsCard');
+  const heatmapCard = document.getElementById('analysisHeatmapCard');
+  const chartCard = document.getElementById('analysisChartCard');
+
+  // Year view: show only heatmap + insights
+  if (analysisPeriod === 'year') {
+    chartCard.style.display = 'none';
+    rankingCard.style.display = 'none';
+    heatmapCard.style.display = 'block';
+    insightsCard.style.display = 'block';
+    periodLabel.textContent = '過去52週間のスコア';
+    renderYearHeatmap();
+    renderCorrelations();
+    return;
+  }
+  chartCard.style.display = 'block';
+  heatmapCard.style.display = 'none';
+  insightsCard.style.display = 'block';
+  renderCorrelations();
+
+  if (analysisPeriod === 'weekday') {
+    chartTitle.textContent = '曜日ごとの時間配分（直近4週間）';
+    rankingCard.style.display = 'none';
+    periodLabel.textContent = '過去28日間の平均';
+    renderWeekdayChart();
+    return;
+  }
+  rankingCard.style.display = 'block';
+  const current = analysisPeriod === 'week' ? getWeekRange(0) : getMonthRange(0);
+  const previous = analysisPeriod === 'week' ? getWeekRange(-1) : getMonthRange(-1);
+  const ce = state.entries.filter(e => inRange(e.date, current));
+  const pe = state.entries.filter(e => inRange(e.date, previous));
+  periodLabel.textContent = `${fmtDateDisplay(current[0])} – ${fmtDateDisplay(current[1])}`;
+  chartTitle.textContent = analysisPeriod === 'week' ? '今週の時間配分' : '今月の時間配分';
+  const curr = groupForChart(ce);
+  const prev = groupForChart(pe);
+  const sorted = Object.entries(curr.groups).sort((a,b) => b[1] - a[1]);
+  renderBarChart('analysisChart', sorted.slice(0, 8), curr.colors, 'analysisChart');
+  const rankingEl = document.getElementById('analysisRanking');
+  rankingEl.innerHTML = '';
+  const h2 = rankingCard.querySelector('h2');
+  h2.innerHTML = `ランキング <span style="font-size:11px; color:var(--text-faint); font-weight:400;">（${analysisPeriod === 'week' ? '先週比' : '先月比'}）</span>`;
+  if (sorted.length === 0) {
+    rankingEl.innerHTML = '<div class="empty-state">この期間はまだ記録がないよ。</div>';
+    return;
+  }
+  sorted.forEach(([label, mins], i) => {
+    const prevMins = prev.groups[label] || 0;
+    const diff = mins - prevMins;
+    let deltaHtml;
+    if (prevMins === 0 && mins > 0) deltaHtml = `<span class="ranking-delta delta-up">new</span>`;
+    else if (Math.abs(diff) < 5) deltaHtml = `<span class="ranking-delta delta-same">±0</span>`;
+    else if (diff > 0) deltaHtml = `<span class="ranking-delta delta-up">+${fmtDuration(diff)}</span>`;
+    else deltaHtml = `<span class="ranking-delta delta-down">−${fmtDuration(-diff)}</span>`;
+    const div = document.createElement('div');
+    div.className = 'ranking-item';
+    div.innerHTML = `
+      <div class="ranking-rank">${i+1}</div>
+      <div class="ranking-color" style="background:${curr.colors[label]};"></div>
+      <div class="ranking-title">${escapeHtml(label)}</div>
+      <div class="ranking-value">${fmtDuration(mins)}${deltaHtml}</div>
+    `;
+    rankingEl.appendChild(div);
+  });
+}
+function renderBarChart(canvasId, sorted, colors, chartVar) {
+  const ctx = document.getElementById(canvasId);
+  if (window[chartVar] && window[chartVar].destroy) { window[chartVar].destroy(); window[chartVar] = null; }
+  if (sorted.length === 0) { ctx.style.display='none'; return; }
+  ctx.style.display = 'block';
+  window[chartVar] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: sorted.map(x => x[0]), datasets: [{ data: sorted.map(x => x[1] / 60), backgroundColor: sorted.map(x => colors[x[0]] || '#999'), borderRadius: 6, borderSkipped: false }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmtDuration(Math.round(c.parsed.x * 60)) } } },
+      scales: {
+        x: { title: { display: true, text: '時間 (h)', font: { size: 10 }, color: cssVar('--text-muted') }, grid: { color: cssVar('--divider') }, ticks: { color: cssVar('--text-muted') } },
+        y: { grid: { display: false }, ticks: { color: cssVar('--text-secondary') } }
+      }
+    }
+  });
+}
+function renderWeekdayChart() {
+  const end = new Date(), start = new Date();
+  start.setDate(end.getDate() - 27);
+  const range = [fmtDate(start), fmtDate(end)];
+  const entries = state.entries.filter(e => inRange(e.date, range));
+  const byWeekday = [{},{},{},{},{},{},{}];
+  const seenDates = Array.from({length:7}, () => new Set());
+  const labelColors = {};
+  entries.forEach(e => {
+    const d = new Date(e.date + 'T00:00:00');
+    const wd = d.getDay();
+    const mins = minutesBetween(e.startTime, e.endTime);
+    const cat = e.categoryId ? getCategoryById(e.categoryId) : null;
+    const label = cat ? cat.name : e.content;
+    const color = cat ? cat.color : hashColor(e.content);
+    labelColors[label] = color;
+    byWeekday[wd][label] = (byWeekday[wd][label] || 0) + mins;
+    seenDates[wd].add(e.date);
+  });
+  const daysCounted = [0,1,2,3,4,5,6].map(i => Math.max(1, seenDates[i].size));
+  const overall = {};
+  entries.forEach(e => {
+    const mins = minutesBetween(e.startTime, e.endTime);
+    const cat = e.categoryId ? getCategoryById(e.categoryId) : null;
+    const label = cat ? cat.name : e.content;
+    overall[label] = (overall[label] || 0) + mins;
+  });
+  const topLabels = Object.entries(overall).sort((a,b) => b[1] - a[1]).slice(0, 5).map(x => x[0]);
+  const labels = ['日','月','火','水','木','金','土'];
+  const reorder = [1,2,3,4,5,6,0];
+  const datasets = topLabels.map(lbl => ({
+    label: lbl,
+    data: reorder.map(wd => (byWeekday[wd][lbl] || 0) / daysCounted[wd] / 60),
+    backgroundColor: labelColors[lbl], borderRadius: 4
+  }));
+  const ctx = document.getElementById('analysisChart');
+  if (window.analysisChart && window.analysisChart.destroy) window.analysisChart.destroy();
+  if (datasets.length === 0 || entries.length === 0) { ctx.style.display = 'none'; return; }
+  ctx.style.display = 'block';
+  window.analysisChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: reorder.map(i => labels[i]), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: cssVar('--text-secondary') } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtDuration(Math.round(c.parsed.y * 60))}/日` } }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: cssVar('--text-secondary') } },
+        y: { stacked: true, title: { display: true, text: '平均時間 (h/日)', font: { size: 10 }, color: cssVar('--text-muted') }, grid: { color: cssVar('--divider') }, ticks: { color: cssVar('--text-muted') } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// Categories management
+// ============================================================
+function renderCategoryManage() {
+  const el = document.getElementById('categoryManageList');
+  el.innerHTML = '';
+  state.categories.forEach(cat => {
+    const row = document.createElement('div');
+    row.className = 'cat-manage-item';
+    row.innerHTML = `
+      <div class="cat-manage-color" style="background:${cat.color};">
+        <input type="color" value="${cat.color}" data-id="${cat.id}">
+      </div>
+      <input class="cat-manage-name" type="text" value="${escapeHtml(cat.name)}" data-id="${cat.id}">
+      <button class="cat-manage-del" data-id="${cat.id}" title="削除">×</button>
+    `;
+    el.appendChild(row);
+    if (cat.keywords && cat.keywords.length > 0) {
+      const kw = document.createElement('div');
+      kw.className = 'cat-keywords';
+      kw.textContent = `🤖 キーワード: ${cat.keywords.join('、')}`;
+      el.appendChild(kw);
+    }
+  });
+  el.querySelectorAll('input[type="color"]').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const cat = getCategoryById(e.target.dataset.id);
+      if (cat) { cat.color = e.target.value; persist(); render(); }
+    });
+  });
+  el.querySelectorAll('.cat-manage-name').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const cat = getCategoryById(e.target.dataset.id);
+      if (cat) { cat.name = e.target.value.trim() || cat.name; persist(); render(); }
+    });
+  });
+  el.querySelectorAll('.cat-manage-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.dataset.id;
+      const cat = getCategoryById(id); if (!cat) return;
+      if (!confirm(`「${cat.name}」を削除する？`)) return;
+      state.categories = state.categories.filter(c => c.id !== id);
+      state.entries.forEach(e2 => { if (e2.categoryId === id) e2.categoryId = null; });
+      persist(); render();
+    });
+  });
+}
+function addCategory() {
+  const name = prompt('新しいカテゴリー名'); if (!name) return;
+  const cat = { id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,5), name: name.trim(), color: hashColor(name.trim()), keywords: [name.trim()] };
+  state.categories.push(cat); persist(); render();
+}
+
+// ============================================================
+// Sample / Import / Export
+// ============================================================
+function loadSampleData() {
+  if (!confirm('サンプルデータを追加する？（既存のデータは残るよ）')) return;
+  const today = new Date();
+  const activities = [
+    ['睡眠','c_sleep',8*60,0,0],['朝食','c_meal',30,8,0],['勉強','c_study',2*60,9,0],
+    ['仕事','c_work',3*60,11,0],['昼食','c_meal',45,12,30],['仕事','c_work',4*60,14,0],
+    ['ジョギング','c_exercise',45,18,30],['夕食','c_meal',60,19,30],
+    ['読書','c_study',60,21,0],['Netflix','c_leisure',90,22,0]
+  ];
+  for (let d = 0; d < 28; d++) {
+    const date = new Date(today); date.setDate(today.getDate() - d);
+    activities.forEach((a, i) => {
+      if (Math.random() < 0.85) {
+        const dur = Math.max(15, a[2] + (Math.random()*40 - 20));
+        const sMin = a[3] * 60 + a[4] + Math.round(Math.random()*20 - 10);
+        const eMin = sMin + Math.round(dur);
+        const sh = Math.floor(sMin/60), sm = sMin%60, eh = Math.floor(eMin/60) % 24, em = eMin%60;
+        state.entries.push({
+          id: 's_' + Date.now() + '_' + d + '_' + i,
+          date: fmtDate(date),
+          startTime: `${String(sh).padStart(2,'0')}:${String(sm).padStart(2,'0')}`,
+          endTime: `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`,
+          content: a[0], memo: '', categoryId: a[1]
+        });
+      }
+    });
+    // Add random scores for some days
+    if (Math.random() < 0.7) {
+      state.scores[fmtDate(date)] = Math.floor(Math.random() * 6) + 4; // 4-9
+    }
+  }
+  for (let d = 0; d < 3; d++) {
+    const date = new Date(today); date.setDate(today.getDate() - d);
+    state.diaries[fmtDate(date)] = ['今日はよく集中できた一日だった。','疲れた…でも読書の時間は心地よかった。','仕事が立て込んでたけど、運動で切り替えられた！'][d];
+  }
+  persist(); render();
+  alert('4週間分のサンプルデータを追加したよ！（スコア＋日記つき）');
+}
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `lifelog-${todayStr()}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+function importData() { document.getElementById('importFile').click(); }
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      let count = 0;
+      if (Array.isArray(data)) { state.entries = state.entries.concat(data); count = data.length; }
+      else if (data && data.entries) {
+        state.entries = state.entries.concat(data.entries);
+        if (data.categories) data.categories.forEach(c => { if (!getCategoryById(c.id)) state.categories.push(c); });
+        if (data.diaries) Object.assign(state.diaries, data.diaries);
+        if (data.scores) Object.assign(state.scores, data.scores);
+        count = data.entries.length;
+      } else throw new Error();
+      if (confirm(`${count}件のデータをインポートするね！`)) { persist(); render(); alert('インポート完了！'); }
+    } catch(err) { alert('JSONファイルの読み込みに失敗したよ'); }
+  };
+  reader.readAsText(file);
+});
+function clearAllData() {
+  if (!confirm('本当に全データを削除する？この操作は戻せないよ。')) return;
+  if (!confirm('本当に本当に削除する？')) return;
+  localStorage.removeItem(STORAGE_KEY); localStorage.removeItem('lifelog_entries_v1');
+  state = loadData(); render();
+}
+
+// ============================================================
+// Streak
+// ============================================================
+function calculateStreak() {
+  const dates = new Set(state.entries.map(e => e.date));
+  if (dates.size === 0) return 0;
+  let streak = 0;
+  const d = new Date();
+  // If today has no entries, start from yesterday (streak still valid)
+  if (!dates.has(fmtDate(d))) d.setDate(d.getDate() - 1);
+  while (dates.has(fmtDate(d))) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+// ============================================================
+// Templates (auto-derived from frequent content+category combos)
+// ============================================================
+function getTopTemplates(limit = 5) {
+  const counts = {};
+  state.entries.forEach(e => {
+    const key = e.content + '||' + (e.categoryId || '');
+    if (!counts[key]) counts[key] = { content: e.content, categoryId: e.categoryId, count: 0 };
+    counts[key].count++;
+  });
+  return Object.values(counts).sort((a,b) => b.count - a.count).slice(0, limit);
+}
+function renderTemplates() {
+  const row = document.getElementById('templatesRow');
+  const group = document.getElementById('templatesGroup');
+  const templates = getTopTemplates(5);
+  if (templates.length === 0) { group.style.display = 'none'; return; }
+  group.style.display = 'block';
+  row.innerHTML = '';
+  templates.forEach(t => {
+    const cat = t.categoryId ? getCategoryById(t.categoryId) : null;
+    const color = cat ? cat.color : hashColor(t.content);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'template-chip';
+    chip.innerHTML = `<span class="dot" style="background:${color};"></span>${escapeHtml(t.content)}`;
+    chip.onclick = () => applyTemplate(t);
+    row.appendChild(chip);
+  });
+}
+function applyTemplate(t) {
+  document.getElementById('formContent').value = t.content;
+  if (t.categoryId) {
+    selectedCategoryId = t.categoryId;
+    renderCategoryChips();
+  }
+  updateAISuggestion();
+}
+
+// ============================================================
+// Correlation insights (score vs activity)
+// ============================================================
+function renderCorrelations() {
+  const el = document.getElementById('analysisInsights');
+  const scoreEntries = Object.entries(state.scores);
+  if (scoreEntries.length < 5) {
+    el.innerHTML = '<div class="insight-empty">スコアを5日以上記録すると、<br>スコアと活動の関係が見えてくるよ</div>';
+    return;
+  }
+  const highDays = scoreEntries.filter(([,s]) => s >= 7).map(([d]) => d);
+  const lowDays = scoreEntries.filter(([,s]) => s <= 4).map(([d]) => d);
+
+  // Average category time on high/low score days
+  const catTimeOn = (dates) => {
+    const byCat = {};
+    dates.forEach(d => {
+      state.entries.filter(e => e.date === d).forEach(e => {
+        const cat = e.categoryId ? getCategoryById(e.categoryId) : null;
+        const label = cat ? cat.name : e.content;
+        if (!byCat[label]) byCat[label] = 0;
+        byCat[label] += minutesBetween(e.startTime, e.endTime);
+      });
+    });
+    Object.keys(byCat).forEach(k => byCat[k] = byCat[k] / Math.max(1, dates.length));
+    return byCat;
+  };
+
+  const insights = [];
+  if (highDays.length >= 2 && lowDays.length >= 2) {
+    const highAvg = catTimeOn(highDays);
+    const lowAvg = catTimeOn(lowDays);
+    const allCats = new Set([...Object.keys(highAvg), ...Object.keys(lowAvg)]);
+    const diffs = [];
+    allCats.forEach(c => {
+      const h = highAvg[c] || 0, l = lowAvg[c] || 0;
+      const diff = h - l;
+      if (Math.abs(diff) >= 20) diffs.push({ cat: c, diff, high: h, low: l });
+    });
+    diffs.sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff));
+    diffs.slice(0, 3).forEach(d => {
+      if (d.diff > 0) {
+        insights.push({ icon: '✨', html: `スコアが高い日は、<strong>${escapeHtml(d.cat)}</strong>の時間が平均<strong>${fmtDuration(Math.round(d.diff))}</strong>長い` });
+      } else {
+        insights.push({ icon: '🌙', html: `スコアが低い日は、<strong>${escapeHtml(d.cat)}</strong>の時間が平均<strong>${fmtDuration(Math.round(-d.diff))}</strong>長い` });
+      }
+    });
+  }
+
+  // Average total recorded time on high vs low days
+  const totalOn = (dates) => {
+    const sums = dates.map(d => state.entries.filter(e => e.date === d).reduce((s,e) => s + minutesBetween(e.startTime, e.endTime), 0));
+    return sums.length ? sums.reduce((a,b) => a+b, 0) / sums.length : 0;
+  };
+  if (highDays.length >= 2 && lowDays.length >= 2) {
+    const th = totalOn(highDays), tl = totalOn(lowDays);
+    if (Math.abs(th - tl) >= 30) {
+      insights.push({ icon: '📊', html: th > tl
+        ? `スコアが高い日は、記録時間そのものが平均<strong>${fmtDuration(Math.round(th-tl))}</strong>長い（よく動いた日ほど満足度が高い傾向）`
+        : `スコアが低い日の方が記録時間が長い傾向。忙しすぎると満足度が下がるのかも？` });
+    }
+  }
+
+  // Average score
+  const avg = scoreEntries.reduce((s,[,v]) => s+v, 0) / scoreEntries.length;
+  insights.push({ icon: '🎯', html: `${scoreEntries.length}日のスコア平均は <strong>${avg.toFixed(1)}</strong> / 10` });
+
+  if (insights.length === 0) {
+    el.innerHTML = '<div class="insight-empty">まだ傾向が見えるほどデータがないよ。<br>もう少し記録が溜まるのを待ってね</div>';
+    return;
+  }
+  el.innerHTML = insights.map(i => `<div class="insight-item"><div class="insight-icon">${i.icon}</div><div class="insight-text">${i.html}</div></div>`).join('');
+}
+
+// ============================================================
+// Year heatmap
+// ============================================================
+function heatmapColor(score) {
+  if (!score) return '';
+  if (score <= 2) return '#E8DACC';
+  if (score <= 4) return '#E29C52';
+  if (score <= 6) return '#C17B5B';
+  if (score <= 8) return '#6B8E4E';
+  return '#4A7C7E';
+}
+function renderYearHeatmap() {
+  const today = new Date();
+  // Start from 52 weeks ago, aligned to Sunday
+  const end = new Date(today);
+  const start = new Date(today);
+  start.setDate(start.getDate() - 364);
+  // Align to Sunday
+  while (start.getDay() !== 0) start.setDate(start.getDate() - 1);
+
+  const grid = document.getElementById('heatmapGrid');
+  const monthsEl = document.getElementById('heatmapMonths');
+  grid.innerHTML = '';
+  monthsEl.innerHTML = '';
+
+  const weeks = Math.ceil(((end - start) / 86400000 + 1) / 7);
+  let monthMarkers = [];
+  let prevMonth = -1;
+  for (let w = 0; w < weeks; w++) {
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + w * 7);
+    if (weekStart.getMonth() !== prevMonth && weekStart.getDate() <= 7) {
+      monthMarkers.push({ col: w, label: weekStart.getMonth() + 1 + '月' });
+      prevMonth = weekStart.getMonth();
+    }
+  }
+  // Render month labels as a grid matching weeks
+  monthsEl.style.gridTemplateColumns = `repeat(${weeks}, 11px)`;
+  for (let w = 0; w < weeks; w++) {
+    const marker = monthMarkers.find(m => m.col === w);
+    const div = document.createElement('div');
+    div.textContent = marker ? marker.label : '';
+    monthsEl.appendChild(div);
+  }
+
+  const cur = new Date(start);
+  for (let w = 0; w < weeks; w++) {
+    for (let day = 0; day < 7; day++) {
+      const dateStr = fmtDate(cur);
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      cell.style.gridColumn = (w + 1);
+      cell.style.gridRow = (day + 1);
+      if (cur > today) {
+        cell.style.visibility = 'hidden';
+      } else {
+        const score = state.scores[dateStr];
+        if (score) {
+          cell.classList.add('has-score');
+          cell.style.background = heatmapColor(score);
+          cell.title = `${dateStr} — スコア ${score}`;
+          cell.onclick = () => { reviewDate = dateStr; switchView('review'); };
+        }
+      }
+      grid.appendChild(cell);
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+}
+
+// ============================================================
+// Weekly auto-review (shows Sunday through Tuesday)
+// ============================================================
+const WEEKLY_DISMISS_KEY = 'lifelog_weekly_dismissed';
+function renderWeeklyReview() {
+  const banner = document.getElementById('weeklyReviewBanner');
+  if (!banner) return;
+  const now = new Date();
+  const dow = now.getDay();
+  // Show Sun-Tue (0,1,2)
+  if (dow > 2) { banner.innerHTML = ''; return; }
+
+  // Compute week identifier (year + week-of-year-ish) — use Sunday of current week
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - dow);
+  const weekId = fmtDate(sunday);
+  const dismissed = localStorage.getItem(WEEKLY_DISMISS_KEY);
+  if (dismissed === weekId) { banner.innerHTML = ''; return; }
+
+  // Previous week = Sun..Sat before this week's Sunday
+  const prevSunEnd = new Date(sunday);
+  prevSunEnd.setDate(prevSunEnd.getDate() - 1);
+  const prevSunStart = new Date(prevSunEnd);
+  prevSunStart.setDate(prevSunStart.getDate() - 6);
+  const range = [fmtDate(prevSunStart), fmtDate(prevSunEnd)];
+  const entries = state.entries.filter(e => inRange(e.date, range));
+  if (entries.length === 0) { banner.innerHTML = ''; return; }
+
+  const total = entries.reduce((s,e) => s + minutesBetween(e.startTime, e.endTime), 0);
+  // Top category
+  const byCat = {};
+  entries.forEach(e => {
+    const cat = e.categoryId ? getCategoryById(e.categoryId) : null;
+    const label = cat ? cat.name : e.content;
+    byCat[label] = (byCat[label] || 0) + minutesBetween(e.startTime, e.endTime);
+  });
+  const top = Object.entries(byCat).sort((a,b) => b[1] - a[1])[0];
+
+  // Avg score
+  const scoresInWeek = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(prevSunStart); d.setDate(d.getDate() + i);
+    const s = state.scores[fmtDate(d)];
+    if (s) scoresInWeek.push(s);
+  }
+  const avgScore = scoresInWeek.length ? (scoresInWeek.reduce((a,b)=>a+b,0) / scoresInWeek.length).toFixed(1) : null;
+
+  const lines = [];
+  lines.push(`合計 <strong>${fmtHours(total)}h</strong> を記録`);
+  if (top) lines.push(`一番時間を使ったのは <strong>${escapeHtml(top[0])}</strong>（${fmtDuration(top[1])}）`);
+  if (avgScore) lines.push(`平均スコア <strong>${avgScore}</strong> / 10`);
+
+  banner.innerHTML = `
+    <div class="weekly-banner">
+      <button class="wb-close" onclick="dismissWeeklyReview('${weekId}')">×</button>
+      <div class="wb-title">📅 先週のふりかえり（${fmtDateDisplay(range[0])}–${fmtDateDisplay(range[1])}）</div>
+      <div class="wb-body">${lines.join('<br>')}</div>
+    </div>
+  `;
+}
+function dismissWeeklyReview(weekId) {
+  localStorage.setItem(WEEKLY_DISMISS_KEY, weekId);
+  document.getElementById('weeklyReviewBanner').innerHTML = '';
+}
+
+// ============================================================
+// Render
+// ============================================================
+function render() {
+  renderToday();
+  renderCategoryManage();
+  if (currentView === 'review') renderReview();
+  if (currentView === 'calendar') renderCalendar();
+  if (currentView === 'analysis') renderAnalysis();
+}
+
+// ============================================================
+// Init
+// ============================================================
+applyTheme();
+document.getElementById('headerSub').textContent = todayDisplay();
+renderToday();
+renderCategoryManage();
+setTimeout(() => { renderReview(); renderCalendar(); renderAnalysis(); }, 100);
+
+// ============================================================
+// PWA: Service Worker registration
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // Auto-update: check for new version every 30 min while app is open
+      setInterval(() => reg.update(), 30 * 60 * 1000);
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available — activate immediately
+            newWorker.postMessage('SKIP_WAITING');
+          }
+        });
+      });
+    }).catch((err) => console.warn('SW registration failed:', err));
+
+    // Reload once the new SW takes over
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  });
+}
+</script>
+</body>
+</html>
