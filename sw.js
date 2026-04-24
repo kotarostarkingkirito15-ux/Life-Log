@@ -1,6 +1,6 @@
 // LifeLog Service Worker
 // Bump this version whenever files change to force clients to update.
-const VERSION = 'v1.0.1';
+const VERSION = 'v1.0.2';
 const CACHE = `lifelog-${VERSION}`;
 
 const ASSETS = [
