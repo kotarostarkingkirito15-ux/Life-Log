@@ -192,9 +192,13 @@
   .timeline-track { position: relative; height: 960px; border-left: 1px solid var(--border-strong); touch-action: pan-y; }
   .timeline-track.dragging { touch-action: none; background: rgba(74,124,126,0.04); }
   .timeline-block {
-    position: absolute; left: 4px; right: 4px; border-radius: 6px; padding: 4px 8px;
+    position: absolute; left: 4px; right: 4px; border-radius: 7px; padding: 4px 8px;
     font-size: 11px; color: white; overflow: hidden;
-    box-shadow: var(--shadow-block); cursor: pointer; transition: transform 0.1s;
+    /* 内側ハイライト＋外側シャドウで、隣接時の境界をより明瞭に */
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.18),
+      0 1px 3px rgba(0,0,0,0.12);
+    cursor: pointer; transition: transform 0.1s;
   }
   .timeline-block:active { transform: scale(0.98); }
   .timeline-block .t-title { font-weight: 600; font-size: 12px; }
@@ -350,7 +354,6 @@
   .cat-manage-name { flex: 1; border: none; background: transparent; font-size: 14px; font-family: inherit; padding: 6px 4px; color: var(--text-strong); }
   .cat-manage-name:focus { outline: none; background: var(--surface-2); border-radius: 6px; }
   .cat-manage-del { background: none; border: none; color: var(--danger-text); font-size: 16px; cursor: pointer; padding: 4px 8px; }
-  .cat-keywords { font-size: 11px; color: var(--text-faint); padding: 0 6px 8px 44px; }
 
   .date-selector { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .date-nav {
@@ -584,7 +587,7 @@
       <div class="timeline-hours" id="timelineHours"></div>
       <div class="timeline-track" id="timelineTrack"></div>
     </div>
-    <div class="hint">💡 空いてる時間をドラッグ（スマホは長押し→ドラッグ）で、その時間帯の記録を追加できるよ</div>
+    <div class="hint">💡 空いてる時間をドラッグ（スマホは長押し→ドラッグ）で、その時間帯の記録を追加できます</div>
   </div>
   <div class="card">
     <h2>記録一覧</h2>
@@ -617,7 +620,7 @@
       <div class="score-value" id="scoreValue">未設定</div>
     </div>
     <div class="score-dots" id="scoreSelector"></div>
-    <div class="hint">タップしてスコアを設定、もう一度タップで解除</div>
+    <div class="hint">タップしてスコアを設定、もう一度タップで解除します</div>
   </div>
 
   <div class="card">
@@ -632,7 +635,7 @@
 
   <div class="card">
     <h2>日記</h2>
-    <textarea class="diary-textarea" id="diaryTextarea" placeholder="今日はどんな一日だった？..."></textarea>
+    <textarea class="diary-textarea" id="diaryTextarea" placeholder="今日はどんな一日でしたか？..."></textarea>
     <div class="diary-status" id="diaryStatus"></div>
   </div>
 </section>
@@ -751,7 +754,7 @@
     <div style="font-size:13px; color:var(--text-secondary); line-height:1.7;">
       一日の時間の使い方を振り返る、シンプルな記録アプリのプロトタイプです。<br><br>
       データはこの端末のブラウザに保存されます（localStorage）。<br>
-      バックアップは「エクスポート」からどうぞ。
+      バックアップは「エクスポート」から行えます。
     </div>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none;">
@@ -1109,7 +1112,7 @@ function saveEntry() {
   const endTime = document.getElementById('formEnd').value;
   let content = document.getElementById('formContent').value.trim();
   const memo = document.getElementById('formMemo').value.trim();
-  if (!date || !startTime || !endTime) { alert('日付・時刻を入力してね'); return; }
+  if (!date || !startTime || !endTime) { alert('日付・時刻を入力してください'); return; }
   let catId = selectedCategoryId;
   if (!catId && content) { const sug = suggestCategory(content); if (sug) catId = sug.id; }
   // 内容が空でもカテゴリー選択があればカテゴリー名を内容として使う
@@ -1118,7 +1121,7 @@ function saveEntry() {
       const cat = getCategoryById(catId);
       content = cat ? cat.name : '';
     }
-    if (!content) { alert('内容かカテゴリーのどちらかを入力してね'); return; }
+    if (!content) { alert('内容かカテゴリーのどちらかを入力してください'); return; }
   }
   if (editingId) {
     const idx = state.entries.findIndex(e => e.id === editingId);
@@ -1131,7 +1134,7 @@ function saveEntry() {
 }
 function deleteEntry() {
   if (!editingId) return;
-  if (!confirm('この記録を削除する？')) return;
+  if (!confirm('この記録を削除しますか？')) return;
   state.entries = state.entries.filter(e => e.id !== editingId);
   persist(); closeModal(); render();
 }
@@ -1162,8 +1165,9 @@ function renderToday() {
     const [sh,sm] = e.startTime.split(':').map(Number);
     const startMin = sh * 60 + sm;
     const durMin = minutesBetween(e.startTime, e.endTime);
-    const top = (startMin / 60) * 40;
-    const height = Math.max(18, (durMin / 60) * 40);
+    // 隣接ブロック同士を視覚的に区切るため、上下に1.5pxずつ余白
+    const top = (startMin / 60) * 40 + 1.5;
+    const height = Math.max(16, (durMin / 60) * 40 - 3);
     const block = document.createElement('div');
     block.className = 'timeline-block';
     block.style.top = top + 'px';
@@ -1178,7 +1182,7 @@ function renderToday() {
   const list = document.getElementById('todayEntryList');
   list.innerHTML = '';
   if (entries.length === 0) {
-    list.innerHTML = '<div class="empty-state">まだ記録がないよ。<br>右下の「+」ボタン、もしくはタイムラインのドラッグで追加できるよ。</div>';
+    list.innerHTML = '<div class="empty-state">まだ記録がありません。<br>右下の「+」ボタン、またはタイムラインのドラッグで追加できます。</div>';
     return;
   }
   entries.forEach(e => {
@@ -1302,7 +1306,7 @@ function renderReview() {
   const rankingEl = document.getElementById('reviewRanking');
   rankingEl.innerHTML = '';
   if (sorted.length === 0) {
-    rankingEl.innerHTML = '<div class="empty-state">この日はまだ記録がないよ。</div>';
+    rankingEl.innerHTML = '<div class="empty-state">この日はまだ記録がありません。</div>';
   } else {
     sorted.forEach(([label, mins], i) => {
       const pct = totalMin > 0 ? Math.round(mins / totalMin * 100) : 0;
@@ -1637,7 +1641,7 @@ function renderAnalysis() {
   const h2 = rankingCard.querySelector('h2');
   h2.innerHTML = `ランキング <span style="font-size:11px; color:var(--text-faint); font-weight:400;">（${analysisPeriod === 'week' ? '先週比' : '先月比'}）</span>`;
   if (sorted.length === 0) {
-    rankingEl.innerHTML = '<div class="empty-state">この期間はまだ記録がないよ。</div>';
+    rankingEl.innerHTML = '<div class="empty-state">この期間はまだ記録がありません。</div>';
     return;
   }
   sorted.forEach(([label, mins], i) => {
@@ -1750,12 +1754,7 @@ function renderCategoryManage() {
       <button class="cat-manage-del" data-id="${cat.id}" title="削除">×</button>
     `;
     el.appendChild(row);
-    if (cat.keywords && cat.keywords.length > 0) {
-      const kw = document.createElement('div');
-      kw.className = 'cat-keywords';
-      kw.textContent = `🤖 キーワード: ${cat.keywords.join('、')}`;
-      el.appendChild(kw);
-    }
+    // キーワードはAI提案用の裏データなのでUIには表示しない
   });
   el.querySelectorAll('input[type="color"]').forEach(inp => {
     inp.addEventListener('change', (e) => {
@@ -1773,7 +1772,7 @@ function renderCategoryManage() {
     btn.addEventListener('click', (e) => {
       const id = e.target.dataset.id;
       const cat = getCategoryById(id); if (!cat) return;
-      if (!confirm(`「${cat.name}」を削除する？`)) return;
+      if (!confirm(`「${cat.name}」を削除しますか？`)) return;
       state.categories = state.categories.filter(c => c.id !== id);
       state.entries.forEach(e2 => { if (e2.categoryId === id) e2.categoryId = null; });
       persist(); render();
@@ -1790,7 +1789,7 @@ function addCategory() {
 // Sample / Import / Export
 // ============================================================
 function loadSampleData() {
-  if (!confirm('サンプルデータを追加する？（既存のデータは残るよ）')) return;
+  if (!confirm('サンプルデータを追加しますか？（既存のデータは残ります）')) return;
   const today = new Date();
   const activities = [
     ['睡眠','c_sleep',8*60,0,0],['朝食','c_meal',30,8,0],['勉強','c_study',2*60,9,0],
@@ -1825,7 +1824,7 @@ function loadSampleData() {
     state.diaries[fmtDate(date)] = ['今日はよく集中できた一日だった。','疲れた…でも読書の時間は心地よかった。','仕事が立て込んでたけど、運動で切り替えられた！'][d];
   }
   persist(); render();
-  alert('4週間分のサンプルデータを追加したよ！（スコア＋日記つき）');
+  alert('4週間分のサンプルデータを追加しました（スコア＋日記つき）');
 }
 function exportData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -1850,14 +1849,14 @@ document.getElementById('importFile').addEventListener('change', (e) => {
         if (data.scores) Object.assign(state.scores, data.scores);
         count = data.entries.length;
       } else throw new Error();
-      if (confirm(`${count}件のデータをインポートするね！`)) { persist(); render(); alert('インポート完了！'); }
-    } catch(err) { alert('JSONファイルの読み込みに失敗したよ'); }
+      if (confirm(`${count}件のデータをインポートしますか？`)) { persist(); render(); alert('インポートが完了しました'); }
+    } catch(err) { alert('JSONファイルの読み込みに失敗しました'); }
   };
   reader.readAsText(file);
 });
 function clearAllData() {
-  if (!confirm('本当に全データを削除する？この操作は戻せないよ。')) return;
-  if (!confirm('本当に本当に削除する？')) return;
+  if (!confirm('本当に全データを削除しますか？この操作は取り消せません。')) return;
+  if (!confirm('本当に本当に削除しますか？')) return;
   localStorage.removeItem(STORAGE_KEY); localStorage.removeItem('lifelog_entries_v1');
   state = loadData(); render();
 }
@@ -1925,7 +1924,7 @@ function renderCorrelations() {
   const el = document.getElementById('analysisInsights');
   const scoreEntries = Object.entries(state.scores);
   if (scoreEntries.length < 5) {
-    el.innerHTML = '<div class="insight-empty">スコアを5日以上記録すると、<br>スコアと活動の関係が見えてくるよ</div>';
+    el.innerHTML = '<div class="insight-empty">スコアを5日以上記録すると、<br>スコアと活動の関係が見えてきます</div>';
     return;
   }
   const highDays = scoreEntries.filter(([,s]) => s >= 7).map(([d]) => d);
@@ -1960,9 +1959,9 @@ function renderCorrelations() {
     diffs.sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff));
     diffs.slice(0, 3).forEach(d => {
       if (d.diff > 0) {
-        insights.push({ icon: '✨', html: `スコアが高い日は、<strong>${escapeHtml(d.cat)}</strong>の時間が平均<strong>${fmtDuration(Math.round(d.diff))}</strong>長い` });
+        insights.push({ icon: '✨', html: `スコアが高い日は、<strong>${escapeHtml(d.cat)}</strong>の時間が平均<strong>${fmtDuration(Math.round(d.diff))}</strong>長いです` });
       } else {
-        insights.push({ icon: '🌙', html: `スコアが低い日は、<strong>${escapeHtml(d.cat)}</strong>の時間が平均<strong>${fmtDuration(Math.round(-d.diff))}</strong>長い` });
+        insights.push({ icon: '🌙', html: `スコアが低い日は、<strong>${escapeHtml(d.cat)}</strong>の時間が平均<strong>${fmtDuration(Math.round(-d.diff))}</strong>長いです` });
       }
     });
   }
@@ -1976,8 +1975,8 @@ function renderCorrelations() {
     const th = totalOn(highDays), tl = totalOn(lowDays);
     if (Math.abs(th - tl) >= 30) {
       insights.push({ icon: '📊', html: th > tl
-        ? `スコアが高い日は、記録時間そのものが平均<strong>${fmtDuration(Math.round(th-tl))}</strong>長い（よく動いた日ほど満足度が高い傾向）`
-        : `スコアが低い日の方が記録時間が長い傾向。忙しすぎると満足度が下がるのかも？` });
+        ? `スコアが高い日は、記録時間そのものが平均<strong>${fmtDuration(Math.round(th-tl))}</strong>長いです（よく動いた日ほど満足度が高い傾向）`
+        : `スコアが低い日の方が記録時間が長い傾向です。忙しすぎると満足度が下がるのかもしれません` });
     }
   }
 
@@ -1986,7 +1985,7 @@ function renderCorrelations() {
   insights.push({ icon: '🎯', html: `${scoreEntries.length}日のスコア平均は <strong>${avg.toFixed(1)}</strong> / 10` });
 
   if (insights.length === 0) {
-    el.innerHTML = '<div class="insight-empty">まだ傾向が見えるほどデータがないよ。<br>もう少し記録が溜まるのを待ってね</div>';
+    el.innerHTML = '<div class="insight-empty">まだ傾向が見えるほどデータがありません。<br>もう少し記録が溜まるのをお待ちください</div>';
     return;
   }
   el.innerHTML = insights.map(i => `<div class="insight-item"><div class="insight-icon">${i.icon}</div><div class="insight-text">${i.html}</div></div>`).join('');
