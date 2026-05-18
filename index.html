@@ -486,6 +486,19 @@
   .cal-day-info-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
   .cal-day-info-label .dot { width: 8px; height: 8px; border-radius: 50%; }
   .cal-day-info-value { color: var(--text-muted); }
+  .cal-day-diary {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px dashed var(--divider);
+  }
+  .cal-day-diary-label {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+    font-weight: 600; letter-spacing: 0.02em;
+  }
+  .cal-day-diary-body {
+    font-size: 13px; color: var(--text-secondary); line-height: 1.7;
+    background: var(--diary-bg); padding: 10px 12px; border-radius: 8px;
+    white-space: pre-wrap; word-break: break-word;
+  }
 
   /* Streak stat */
   .stat-card.streak .value { color: #E77C3C; }
@@ -794,7 +807,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">内容</label>
+      <label class="form-label">内容 <span style="color:var(--text-faint); font-weight:400;">（カテゴリーを選ぶなら省略OK）</span></label>
       <input type="text" class="form-input" id="formContent" placeholder="例：勉強、仕事、食事、散歩..." autocomplete="off">
       <div class="ai-suggestion" id="aiSuggestion">
         <span>💡</span>
@@ -1094,11 +1107,19 @@ function saveEntry() {
   const date = document.getElementById('formDate').value;
   const startTime = document.getElementById('formStart').value;
   const endTime = document.getElementById('formEnd').value;
-  const content = document.getElementById('formContent').value.trim();
+  let content = document.getElementById('formContent').value.trim();
   const memo = document.getElementById('formMemo').value.trim();
-  if (!date || !startTime || !endTime || !content) { alert('日付・時刻・内容を入力してね'); return; }
+  if (!date || !startTime || !endTime) { alert('日付・時刻を入力してね'); return; }
   let catId = selectedCategoryId;
-  if (!catId) { const sug = suggestCategory(content); if (sug) catId = sug.id; }
+  if (!catId && content) { const sug = suggestCategory(content); if (sug) catId = sug.id; }
+  // 内容が空でもカテゴリー選択があればカテゴリー名を内容として使う
+  if (!content) {
+    if (catId) {
+      const cat = getCategoryById(catId);
+      content = cat ? cat.name : '';
+    }
+    if (!content) { alert('内容かカテゴリーのどちらかを入力してね'); return; }
+  }
   if (editingId) {
     const idx = state.entries.findIndex(e => e.id === editingId);
     if (idx >= 0) state.entries[idx] = { ...state.entries[idx], date, startTime, endTime, content, memo, categoryId: catId };
@@ -1463,16 +1484,28 @@ function renderCalDayInfo() {
   if (score) scoreHtml = ` <span style="color:${getScoreColor(score)}; font-weight:700;">スコア ${score}/10</span>`;
   document.getElementById('calDayInfoTitle').innerHTML = `${fmtDateDisplay(calSelectedDate)} (${weekdayStr(calSelectedDate)}) — ${fmtHours(totalMin)}h${scoreHtml}`;
   const body = document.getElementById('calDayInfoBody');
+  let html = '';
   if (sorted.length === 0) {
-    body.innerHTML = '<div style="color:var(--text-faint); font-size:12px; padding:8px 0;">記録なし</div>';
+    html += '<div style="color:var(--text-faint); font-size:12px; padding:8px 0;">記録なし</div>';
   } else {
-    body.innerHTML = sorted.map(([label, mins]) => `
+    html += sorted.map(([label, mins]) => `
       <div class="cal-day-info-row">
         <div class="cal-day-info-label"><span class="dot" style="background:${colors[label]};"></span>${escapeHtml(label)}</div>
         <div class="cal-day-info-value">${fmtDuration(mins)}</div>
       </div>
     `).join('');
   }
+  // 日記がある場合は下に表示
+  const diary = (state.diaries || {})[calSelectedDate];
+  if (diary && diary.trim()) {
+    html += `
+      <div class="cal-day-diary">
+        <div class="cal-day-diary-label">📔 日記</div>
+        <div class="cal-day-diary-body">${escapeHtml(diary).replace(/\n/g, '<br>')}</div>
+      </div>
+    `;
+  }
+  body.innerHTML = html;
 }
 function goToReviewFromCalendar() {
   if (!calSelectedDate) return;
